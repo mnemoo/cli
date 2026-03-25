@@ -128,7 +128,7 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	switch m.state {
 	case stateList:
 		switch key {
-		case "ctrl+c":
+		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "esc":
 			return m, func() tea.Msg { return GoBackMsg{} }
@@ -149,7 +149,7 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 
 	case stateError:
 		switch key {
-		case "ctrl+c":
+		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "esc":
 			return m, func() tea.Msg { return GoBackMsg{} }

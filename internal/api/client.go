@@ -66,6 +66,15 @@ func (c *Client) GetTeamBalance(ctx context.Context, teamSlug string) (*TeamBala
 	return &balance, nil
 }
 
+func (c *Client) GetGameStats(ctx context.Context, teamSlug, gameSlug string) (*GameStatsByModeResponse, error) {
+	var stats GameStatsByModeResponse
+	url := fmt.Sprintf("%s/teams/%s/games/%s/stats", baseURL, teamSlug, gameSlug)
+	if err := c.getJSON(ctx, url, &stats); err != nil {
+		return nil, fmt.Errorf("game stats: %w", err)
+	}
+	return &stats, nil
+}
+
 func (c *Client) getJSON(ctx context.Context, url string, dest any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

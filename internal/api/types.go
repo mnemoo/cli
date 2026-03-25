@@ -59,3 +59,22 @@ type TeamBalance struct {
 	Position float64 `json:"position"`
 	Carry    float64 `json:"carry"`
 }
+
+type GameModeStat struct {
+	Mode          string  `json:"mode"`
+	Count         int64   `json:"count"`
+	Turnover      float64 `json:"turnover"`
+	Profit        float64 `json:"profit"`
+	ExpectedRtp   float64 `json:"expectedReturn"`
+	EffectiveRtp  float64 `json:"effectiveRtp"`
+	NormalizedRtp float64 `json:"normalizedRtp"`
+	Cost          float64 `json:"cost"`
+	Rtp           float64 `json:"rtp"`
+}
+
+type GameStatsByModeResponse struct {
+	Name  string         `json:"name"`
+	Slug  string         `json:"slug"`
+	Image string         `json:"image"`
+	Stats []GameModeStat `json:"stats"`
+}
