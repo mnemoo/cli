@@ -1,0 +1,3160 @@
+openapi: 3.1.0
+info:
+  title: Stake Portal / Engine Web API
+  description: |
+    Contract
+  version: "1.0.0"
+
+servers:
+  - url: https://stake-engine.com/
+
+tags:
+  - name: auth
+  - name: users
+  - name: teams
+  - name: invites
+  - name: operators
+  - name: games
+  - name: approvals
+  - name: guidelines
+  - name: admin
+  - name: contracts
+  - name: files
+  - name: assets
+  - name: rankings
+  - name: payments
+
+paths:
+  /api/users:
+    get:
+      tags: [users]
+      summary: Current user profile
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /api/users/accounts:
+    get:
+      tags: [users]
+      summary: Linked OAuth accounts
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAccountsResponse"
+
+  /auth/revoke/discord/{providerAccountID}:
+    post:
+      tags: [auth]
+      parameters:
+        - $ref: "#/components/parameters/ProviderAccountID"
+      responses:
+        "200":
+          description: null or void (client union)
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /auth/revoke/google/{providerAccountID}:
+    post:
+      tags: [auth]
+      parameters:
+        - $ref: "#/components/parameters/ProviderAccountID"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /auth/revoke/github/{providerAccountID}:
+    post:
+      tags: [auth]
+      parameters:
+        - $ref: "#/components/parameters/ProviderAccountID"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams:
+    get:
+      tags: [teams]
+      summary: List teams (filtered)
+      parameters:
+        - name: name
+          in: query
+          schema: { type: string }
+        - name: size
+          in: query
+          schema: { type: number }
+        - name: from
+          in: query
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamListItem"
+
+  /api/teams/{team}:
+    parameters:
+      - $ref: "#/components/parameters/TeamSlug"
+    get:
+      tags: [teams]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamDetail"
+    patch:
+      tags: [teams]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamPatchBody"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamDetail"
+
+  /api/teams/{team}/balance:
+    get:
+      tags: [teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  position: { type: number }
+                  carry: { type: number }
+
+  /api/teams/{team}/stats:
+    get:
+      tags: [teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - name: operator
+          in: query
+          schema: { type: string }
+        - name: tag
+          in: query
+          schema: { type: string }
+        - name: start
+          in: query
+          schema: { type: string }
+        - name: end
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamGameStatRow"
+
+  /api/teams/{team}/teamStats:
+    get:
+      tags: [teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - name: operator
+          in: query
+          schema: { type: string }
+        - name: start
+          in: query
+          schema: { type: string }
+        - name: end
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamOperatorStatRow"
+
+  /api/teams/{team}/games/{game}/stats:
+    get:
+      tags: [games, teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+        - name: operator
+          in: query
+          schema: { type: string }
+        - name: tag
+          in: query
+          schema: { type: string }
+        - name: start
+          in: query
+          schema: { type: string }
+        - name: end
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameStatsByModeResponse"
+
+  /api/teams/{team}/locationStats:
+    get:
+      tags: [teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - name: operator
+          in: query
+          schema:
+            type: array
+            items: { type: string }
+        - name: start
+          in: query
+          schema: { type: number }
+        - name: end
+          in: query
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationStatsResponse"
+
+  /api/teams/{team}/invites:
+    get:
+      tags: [invites]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/InviteStatus"
+          nullable: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamInvite"
+    post:
+      tags: [invites]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email: { type: string, format: email }
+                role:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamInvite"
+
+  /api/teams/{team}/wallets:
+    get:
+      tags: [teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WalletRecord"
+    post:
+      tags: [teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [walletAddr, teamAddr, walletType]
+              properties:
+                walletAddr: { type: string }
+                teamAddr: { type: string }
+                walletType: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletRecord"
+
+  /api/teams/{team}/wallets/{walletId}:
+    delete:
+      tags: [teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - name: walletId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletRecord"
+
+  /api/invites:
+    get:
+      tags: [invites]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/InviteStatus"
+          nullable: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamInvite"
+
+  /api/invites/{inviteID}/accept:
+    post:
+      tags: [invites]
+      parameters:
+        - name: inviteID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteActionResponse"
+
+  /api/invites/{inviteID}/decline:
+    post:
+      tags: [invites]
+      parameters:
+        - name: inviteID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteActionResponse"
+
+  /api/invites/{inviteID}:
+    delete:
+      tags: [invites]
+      parameters:
+        - name: inviteID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteActionResponse"
+
+  /api/operators:
+    get:
+      tags: [operators]
+      parameters:
+        - name: demo
+          in: query
+          schema: { type: boolean }
+        - name: active
+          in: query
+          schema: { type: boolean }
+        - name: social
+          in: query
+          schema: { type: boolean }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Operator"
+
+  /api/teams/{team}/games:
+    get:
+      tags: [games]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - name: published
+          in: query
+          schema: { type: string }
+        - name: has_approval
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamGameCard"
+    post:
+      tags: [games]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name: { type: string }
+                slug: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameCreateResponse"
+
+  /api/teams/{team}/games/{game}:
+    parameters:
+      - $ref: "#/components/parameters/TeamSlug"
+      - $ref: "#/components/parameters/GameSlug"
+    get:
+      tags: [games]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamGameDetail"
+    patch:
+      tags: [games]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, nullable: true }
+                slug: { type: string, nullable: true }
+                image: { type: string, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamGameDetail"
+    delete:
+      tags: [games]
+      responses:
+        "200":
+          description: OK
+
+  /api/teams/{team}/games/{game}/versions:
+    get:
+      tags: [games]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/VersionKind"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GameVersionHistoryItem"
+
+  /api/teams/{team}/users:
+    get:
+      tags: [teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamMember"
+
+  /api/teams/{team}/users/{userID}:
+    parameters:
+      - $ref: "#/components/parameters/TeamSlug"
+      - name: userID
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [teams]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamMember"
+    delete:
+      tags: [teams]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email: { type: string }
+                  name: { type: string }
+                  image: { type: string, nullable: true }
+
+  /api/teams/{team}/approvals:
+    get:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - name: team
+          in: query
+          schema: { type: string }
+        - name: open
+          in: query
+          schema: { type: boolean }
+        - name: approved
+          in: query
+          schema: { type: boolean }
+        - name: size
+          in: query
+          schema: { type: number, minimum: 1 }
+        - name: from
+          in: query
+          schema: { type: number, minimum: 0 }
+        - name: updateOrder
+          in: query
+          schema: { type: string }
+        - name: ratingOrder
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApprovalListItem"
+
+  /api/teams/{team}/approvals/{game}:
+    parameters:
+      - $ref: "#/components/parameters/TeamSlug"
+      - $ref: "#/components/parameters/GameSlug"
+    get:
+      tags: [approvals]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalWithEvents"
+    post:
+      tags: [approvals]
+      summary: Create or submit approval (contract, versions)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalSubmitBody"
+      responses:
+        "200":
+          description: OK
+    patch:
+      tags: [approvals]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version, type]
+              properties:
+                version: { type: number, minimum: 0 }
+                type:
+                  $ref: "#/components/schemas/VersionKind"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/comment:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment: { type: string }
+                assets:
+                  type: array
+                  items: { type: string, format: uuid }
+              required: [assets]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/private:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment: { type: string }
+                assets:
+                  type: array
+                  items: { type: string, format: uuid }
+              required: [assets]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/action:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operator, version, type]
+              properties:
+                operator: { type: string }
+                version: { type: number, minimum: 0 }
+                type:
+                  $ref: "#/components/schemas/VersionKind"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/active:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operator, version, type]
+              properties:
+                operator: { type: string }
+                version: { type: number, minimum: 0 }
+                type:
+                  $ref: "#/components/schemas/VersionKind"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/status:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [open]
+              properties:
+                comment: { type: string }
+                assets:
+                  type: array
+                  items: { type: string, format: uuid }
+                open: { type: boolean }
+                locked: { type: boolean }
+                guideline: { type: number, minimum: 0 }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/guideline:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [guideline, enabled]
+              properties:
+                guideline: { type: number, minimum: 0 }
+                enabled: { type: boolean }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/rating:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: { type: number, minimum: 0, maximum: 1000 }
+                forceRating: { type: boolean }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/update:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [column]
+              properties:
+                column:
+                  type: string
+                  enum: [new, awaiting, responded, unset]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/events/{eventId}:
+    patch:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [comment, private_comment]
+                comment: { type: string }
+                assets:
+                  type: array
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/assigned-approver:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [add, remove]
+                user_id: { type: string, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/resubmission:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/request-rerating:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/approvals/{game}/events/{eventId}/feedback:
+    post:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating: { type: number, minimum: 0, maximum: 1000 }
+                comment: { type: string }
+                tags:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/teams/{team}/guidelines:
+    get:
+      tags: [guidelines]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GuidelineNode"
+
+  /api/teams/{team}/games/{game}/data/summary/v{version}:
+    get:
+      tags: [games]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+        - name: version
+          in: path
+          required: true
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                nullable: true
+                items:
+                  $ref: "#/components/schemas/GameDataSummaryRow"
+
+  /api/teams/{team}/games/{game}/data/distribution/v{version}:
+    get:
+      tags: [games]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+        - name: version
+          in: path
+          required: true
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GameDistributionRow"
+
+  /api/teams/{team}/payments:
+    get:
+      tags: [payments, teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamPaymentsResponse"
+
+  /api/teamRanking:
+    get:
+      tags: [rankings]
+      parameters:
+        - name: size
+          in: query
+          schema: { type: number }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [turnover, betcount]
+        - name: time
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamRankingRow"
+
+  /api/gameRanking:
+    get:
+      tags: [rankings]
+      parameters:
+        - name: size
+          in: query
+          schema: { type: number }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [turnover, betcount]
+        - name: time
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GameRankingRow"
+
+  /api/contracts/latest:
+    get:
+      tags: [contracts]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+
+  /api/contracts/{id}:
+    get:
+      tags: [contracts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  created: { type: number, minimum: 0 }
+                  body: { type: string }
+
+  /api/file/upload:
+    post:
+      tags: [files]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FileUploadBody"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key: { type: string }
+                  url: { type: string }
+
+  /api/file/multiupload:
+    post:
+      tags: [files]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FileMultiUploadBody"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MultiUploadInitResponse"
+
+  /api/file/multicopy:
+    post:
+      tags: [files]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FileMulticopyBody"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MultiUploadInitResponse"
+
+  /api/file/copy:
+    post:
+      tags: [files]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [team, game, pathFrom, pathTo]
+              properties:
+                team: { type: string }
+                game: { type: string }
+                pathFrom: { type: string }
+                pathTo: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key: { type: string }
+                  etag: { type: string }
+
+  /api/file/complete:
+    post:
+      tags: [files]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FileCompleteBody"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  etag: { type: string }
+
+  /api/file/delete:
+    post:
+      tags: [files]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [team, game, paths]
+              properties:
+                team: { type: string }
+                game: { type: string }
+                paths:
+                  type: array
+                  items: { type: string }
+                  minItems: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: number }
+                  failedPaths:
+                    type: array
+                    items: { type: string }
+
+  /api/file/publish/math:
+    post:
+      tags: [files]
+      summary: Publish math build (client tolerates non-OK without throwing)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishBody"
+      responses:
+        "200":
+          description: Success payload or publish error object
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [version, changed]
+                    properties:
+                      version: { type: number }
+                      changed: { type: boolean }
+                  - $ref: "#/components/schemas/PublishError"
+
+  /api/file/publish/front:
+    post:
+      tags: [files]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishBody"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      version: { type: number }
+                      changed: { type: boolean }
+                  - $ref: "#/components/schemas/PublishError"
+
+  /api/file/game/{team}/{game}/scratch/{path}:
+    get:
+      tags: [files]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+        - name: path
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key: { type: string }
+                    etag: { type: string }
+                    size: { type: integer, minimum: 0 }
+
+  /api/asset/{team}/{game}/game-tile:
+    parameters:
+      - $ref: "#/components/parameters/TeamSlug"
+      - $ref: "#/components/parameters/GameSlug"
+    get:
+      tags: [assets]
+      description: Client validates team/game in a request object (often mirrors path params).
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameTile"
+    patch:
+      tags: [assets]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GameTilePatch"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/admin/teams:
+    get:
+      tags: [admin, teams]
+      summary: Admin team list (same shape as public list)
+      parameters:
+        - name: name
+          in: query
+          schema: { type: string }
+        - name: size
+          in: query
+          schema: { type: number }
+        - name: from
+          in: query
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamListItem"
+
+  /api/admin/teams/{team}/games/{game}/url:
+    parameters:
+      - $ref: "#/components/parameters/TeamSlug"
+      - $ref: "#/components/parameters/GameSlug"
+    get:
+      tags: [admin, games]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  urlTemplate: { type: string, nullable: true }
+    post:
+      tags: [admin, games]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [urlTemplate]
+              properties:
+                urlTemplate: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  urlTemplate: { type: string, nullable: true }
+    delete:
+      tags: [admin, games]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: string
+                nullable: true
+
+  /api/admin/teams/{team}/approvals/{game}:
+    get:
+      tags: [admin, approvals]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalWithEvents"
+
+  /api/admin/users:
+    get:
+      tags: [admin, users]
+      parameters:
+        - name: name
+          in: query
+          schema: { type: string }
+        - name: email
+          in: query
+          schema: { type: string }
+        - name: role
+          in: query
+          schema: { type: string }
+        - name: size
+          in: query
+          schema: { type: number }
+        - name: from
+          in: query
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUserRow"
+
+  /api/admin/users/{userId}:
+    patch:
+      tags: [admin, users]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string }
+                image: { type: string, nullable: true }
+                role:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /api/admin/users/{userId}/slack:
+    patch:
+      tags: [admin, users]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slackId]
+              properties:
+                slackId: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId: { type: string }
+                  slackId: { type: string }
+
+  /api/admin/games:
+    get:
+      tags: [admin, games]
+      parameters:
+        - name: name
+          in: query
+          schema: { type: string }
+        - name: team
+          in: query
+          schema: { type: string }
+        - name: deleted
+          in: query
+          schema: { type: boolean }
+        - name: published
+          in: query
+          schema: { type: boolean }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: from
+          in: query
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminGameRow"
+
+  /api/admin/approvals:
+    get:
+      tags: [admin, approvals]
+      parameters:
+        - name: team
+          in: query
+          schema: { type: string }
+        - name: open
+          in: query
+          schema: { type: boolean }
+        - name: approved
+          in: query
+          schema: { type: boolean }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: from
+          in: query
+          schema: { type: integer, minimum: 0 }
+        - name: updateOrder
+          in: query
+          schema: { type: string }
+        - name: ratingOrder
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApprovalListItem"
+
+  /api/admin/approvals/count:
+    get:
+      tags: [admin, approvals]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalsCountDashboard"
+
+  /api/admin/currencies:
+    get:
+      tags: [admin]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+
+  /api/admin/contracts:
+    get:
+      tags: [admin, contracts]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    created: { type: number, minimum: 0 }
+                    body: { type: string }
+                    id: { type: string, format: uuid }
+    post:
+      tags: [admin, contracts]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+
+  /api/admin/betlevels:
+    get:
+      tags: [admin]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+
+  /api/admin/betlevels/{template}:
+    parameters:
+      - name: template
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [admin]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BetLevelCurrency"
+    post:
+      tags: [admin]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+    patch:
+      tags: [admin]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+    delete:
+      tags: [admin]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/admin/betlevels/{template}/games:
+    get:
+      tags: [admin]
+      parameters:
+        - name: template
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    game:
+                      type: object
+                      properties:
+                        name: { type: string }
+                        slug: { type: string }
+                        image:
+                          oneOf:
+                            - { type: string }
+                            - { type: string, nullable: true }
+                    team:
+                      type: object
+                      properties:
+                        name: { type: string }
+                        slug: { type: string }
+                        image:
+                          oneOf:
+                            - { type: string }
+                            - { type: string, nullable: true }
+
+  /api/admin/betlevels/{template}/{currency}:
+    parameters:
+      - name: template
+        in: path
+        required: true
+        schema: { type: string }
+      - name: currency
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [admin]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BetLevelCurrency"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+    post:
+      tags: [admin]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BetLevelCurrency"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+    delete:
+      tags: [admin]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/admin/betlevels/teams/{team}/games/{game}:
+    parameters:
+      - $ref: "#/components/parameters/TeamSlug"
+      - $ref: "#/components/parameters/GameSlug"
+    get:
+      tags: [admin]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    operator: { type: string }
+                    template: { type: string }
+    post:
+      tags: [admin]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operator, template]
+              properties:
+                operator: { type: string }
+                template: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/admin/betlevels/teams/{team}/games/{game}/exposure/{operator}:
+    get:
+      tags: [admin]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - $ref: "#/components/parameters/GameSlug"
+        - name: operator
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    exposure: { type: number }
+
+  /api/admin/betlevels/teams/{team}/operator/{operator}/appliedTemplates:
+    get:
+      tags: [admin]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - name: operator
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  template: { type: string, nullable: true }
+
+  /api/admin/guidelines:
+    get:
+      tags: [admin, guidelines]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GuidelineNode"
+    post:
+      tags: [admin, guidelines]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, type]
+              properties:
+                parentId: { type: number, nullable: true }
+                text: { type: string }
+                type:
+                  type: string
+                  enum: [group, item]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: number }
+
+  /api/admin/guidelines/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      tags: [admin, guidelines]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                parentId: { type: number, nullable: true }
+                text: { type: string }
+                sortOrder: { type: integer, minimum: 0 }
+                type:
+                  type: string
+                  enum: [group, item]
+                minTrustLevel: { type: number, nullable: true }
+                maxTrustLevel: { type: number, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: number }
+    delete:
+      tags: [admin, guidelines]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: number }
+
+  /api/admin/message-templates:
+    get:
+      tags: [admin]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: number }
+                    title: { type: string }
+                    message: { type: string }
+                    sortOrder: { type: integer }
+    post:
+      tags: [admin]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, message, sortOrder]
+              properties:
+                title: { type: string }
+                message: { type: string }
+                sortOrder: { type: integer }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: number }
+
+  /api/admin/message-templates/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      tags: [admin]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                message: { type: string }
+                sortOrder: { type: integer }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: number }
+    delete:
+      tags: [admin]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: number }
+
+  /api/admin/bets:
+    get:
+      tags: [admin]
+      parameters:
+        - name: betId
+          in: query
+          schema: { type: string }
+        - name: extUserId
+          in: query
+          schema: { type: string }
+        - name: team
+          in: query
+          schema: { type: string }
+        - name: game
+          in: query
+          schema: { type: string }
+        - name: dateFrom
+          in: query
+          schema: { type: string }
+        - name: dateTo
+          in: query
+          schema: { type: string }
+        - name: active
+          in: query
+          schema: { type: boolean }
+        - name: from
+          in: query
+          required: true
+          schema: { type: string }
+        - name: size
+          in: query
+          required: true
+          schema: { type: string }
+        - name: operator
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminBetListRow"
+
+  /api/admin/bets/{operator}/{betID}:
+    parameters:
+      - name: operator
+        in: path
+        required: true
+        schema: { type: string }
+      - name: betID
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [admin]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBetDetail"
+
+  /api/admin/bets/{operator}/{betID}/force-endround:
+    post:
+      tags: [admin]
+      parameters:
+        - name: operator
+          in: path
+          required: true
+          schema: { type: string }
+        - name: betID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/admin/bets/{operator}/{betID}/force-rollback:
+    post:
+      tags: [admin]
+      parameters:
+        - name: operator
+          in: path
+          required: true
+          schema: { type: string }
+        - name: betID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/admin/bets/{operator}/{betID}/force-inactive:
+    post:
+      tags: [admin]
+      parameters:
+        - name: operator
+          in: path
+          required: true
+          schema: { type: string }
+        - name: betID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                nullable: true
+
+  /api/admin/teams/{team}/note:
+    patch:
+      tags: [admin, teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: number }
+                  teamId: { type: number }
+                  note: { type: string }
+
+  /api/admin/teams/{team}/trust-level:
+    patch:
+      tags: [admin, teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                trustLevel: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: number }
+                  name: { type: string }
+                  slug: { type: string }
+                  trustLevel: { type: number }
+
+  /api/admin/reconciler/failed-credits:
+    get:
+      tags: [admin]
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string }
+        - name: size
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: operator
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReconcilerFailedRow"
+
+  /api/admin/reconciler/failed-rollbacks:
+    get:
+      tags: [admin]
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string }
+        - name: size
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: operator
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReconcilerFailedRollbackRow"
+
+  /api/admin/reconciler/failed-endrounds:
+    get:
+      tags: [admin]
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string }
+        - name: size
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: operator
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReconcilerFailedRow"
+
+  /api/admin/payments:
+    post:
+      tags: [admin, payments]
+      responses:
+        "200":
+          description: Array of per-team payment rows (see client Zod schema)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+
+  /api/admin/teamStats:
+    get:
+      tags: [admin]
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema: { type: number }
+        - name: year
+          in: query
+          required: true
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+
+  /api/admin/monthPayments:
+    get:
+      tags: [admin, payments]
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema: { type: number }
+        - name: year
+          in: query
+          required: true
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+
+  /api/admin/monthGamePayments:
+    get:
+      tags: [admin, payments]
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema: { type: number }
+        - name: year
+          in: query
+          required: true
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+
+  /api/admin/runningMonthPayments:
+    get:
+      tags: [admin, payments]
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema: { type: number }
+        - name: year
+          in: query
+          required: true
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+
+  /api/admin/challenges:
+    get:
+      tags: [admin]
+      parameters:
+        - name: team
+          in: query
+          required: true
+          schema: { type: string }
+        - name: game
+          in: query
+          required: true
+          schema: { type: string }
+        - name: version
+          in: query
+          required: true
+          schema: { type: number }
+        - name: rtp
+          in: query
+          required: true
+          schema: { type: number }
+        - name: min
+          in: query
+          required: true
+          schema: { type: number }
+        - name: step
+          in: query
+          required: true
+          schema: { type: number }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    targetMult: { type: number }
+                    maximumPrize: { type: number }
+                    expectedHitRate: { type: number }
+                    claimProbability: { type: number }
+
+  /api/admin/approvalStats:
+    get:
+      tags: [admin, approvals]
+      parameters:
+        - name: start
+          in: query
+          schema: { type: string, nullable: true }
+        - name: end
+          in: query
+          schema: { type: string, nullable: true }
+        - name: stars
+          in: query
+          schema: { type: string, nullable: true }
+        - name: employee
+          in: query
+          schema: { type: string, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  newGames: { type: number }
+                  releasedGames: { type: number }
+                  avgComments: { type: number }
+                  avgRatingHours: { type: number }
+                  avgGuidelineHours: { type: number }
+                  avgDaysToActive: { type: number }
+                  reviewerComments: { type: number }
+                  gamesReleased: { type: number }
+                  avgReviewerCommentHours: { type: number }
+
+  /api/admin/approvalCounts:
+    get:
+      tags: [admin, approvals]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  weeklyApprovals:
+                    type: object
+                    properties:
+                      dateStart:
+                        type: array
+                        items: { type: string }
+                      newCount:
+                        type: array
+                        items: { type: number }
+                      newActive:
+                        type: array
+                        items: { type: number }
+                  dailyApprovals:
+                    type: object
+                    properties:
+                      dateStart:
+                        type: array
+                        items: { type: string }
+                      newCount:
+                        type: array
+                        items: { type: number }
+                      newActive:
+                        type: array
+                        items: { type: number }
+
+components:
+  parameters:
+    TeamSlug:
+      name: team
+      in: path
+      required: true
+      schema: { type: string }
+    GameSlug:
+      name: game
+      in: path
+      required: true
+      schema: { type: string }
+    ProviderAccountID:
+      name: providerAccountID
+      in: path
+      required: true
+      schema: { type: string }
+
+  schemas:
+    InviteStatus:
+      type: string
+      enum: [pending, accepted, declined, cancelled]
+
+    VersionKind:
+      type: string
+      enum: [math, front]
+
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        image: { type: string }
+        roles:
+          type: array
+          items: { type: string }
+
+    UserAccountsResponse:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        accounts:
+          type: array
+          items:
+            type: object
+            properties:
+              expiresAt: { type: string }
+              provider: { type: string }
+              providerId: { type: string }
+              providerType: { type: string }
+              userId: { type: string }
+
+    TeamListItem:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        image: { type: string, nullable: true }
+        trustLevel: { type: number }
+        stats:
+          type: object
+          nullable: true
+          properties:
+            day:
+              type: object
+              properties:
+                count: { type: number }
+                turnover: { type: number }
+                profit: { type: number }
+            month:
+              type: object
+              properties:
+                count: { type: number }
+                turnover: { type: number }
+                profit: { type: number }
+
+    TeamDetail:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        image: { type: string, nullable: true }
+        trustLevel: { type: number }
+
+    TeamPatchBody:
+      type: object
+      properties:
+        name: { type: string, nullable: true }
+        slug: { type: string, nullable: true }
+        image: { type: string, nullable: true }
+
+    TeamGameStatRow:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        image: { type: string }
+        stats:
+          type: object
+          nullable: true
+          properties:
+            count: { type: number }
+            turnover: { type: number }
+            profit: { type: number }
+            unique: { type: number }
+
+    TeamOperatorStatRow:
+      type: object
+      properties:
+        betCount: { type: number }
+        turnover: { type: number }
+        profit: { type: number }
+        uniqueUsers: { type: number }
+        operator: { type: string }
+
+    GameStatsByModeResponse:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        image: { type: string }
+        stats:
+          type: array
+          items:
+            type: object
+            properties:
+              mode: { type: string }
+              count: { type: number }
+              turnover: { type: number }
+              profit: { type: number }
+              expectedReturn: { type: number }
+              effectiveRtp: { type: number }
+              normalizedRtp: { type: number }
+              cost: { type: number }
+              rtp: { type: number }
+
+    LocationStatsResponse:
+      type: object
+      properties:
+        currency:
+          type: array
+          items:
+            type: object
+            properties:
+              currency: { type: string }
+              betCount: { type: number }
+              turnover: { type: number }
+              profit: { type: number }
+        country:
+          type: array
+          items:
+            type: object
+            properties:
+              country: { type: string }
+              betCount: { type: number }
+              turnover: { type: number }
+              profit: { type: number }
+
+    TeamInvite:
+      type: object
+      properties:
+        id: { type: string }
+        team:
+          type: object
+          properties:
+            name: { type: string }
+            slug: { type: string }
+            image: { type: string, nullable: true }
+        invitedBy:
+          type: object
+          properties:
+            name: { type: string }
+            email: { type: string }
+            image: { type: string }
+            role:
+              type: array
+              items: { type: string }
+        role:
+          type: array
+          items: { type: string }
+        status:
+          oneOf:
+            - type: array
+              items: { type: string }
+            - $ref: "#/components/schemas/InviteStatus"
+        invited: { type: string }
+
+    InviteActionResponse:
+      type: object
+      properties:
+        inviteID: { type: string }
+        status:
+          $ref: "#/components/schemas/InviteStatus"
+
+    Operator:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        image: { type: string, format: uuid }
+        demo: { type: boolean }
+        social: { type: boolean }
+        active: { type: boolean }
+
+    TeamGameCard:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        rating: { type: number, nullable: true }
+        image: { type: string, nullable: true }
+        published: { type: boolean }
+        approval:
+          type: object
+          nullable: true
+          properties:
+            open: { type: boolean }
+            locked: { type: boolean }
+            column: { type: string }
+        stats:
+          type: object
+          nullable: true
+
+    GameCreateResponse:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        image: { type: string, nullable: true }
+
+    TeamGameDetail:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        image: { type: string, nullable: true }
+        rating: { type: number, nullable: true }
+        approval:
+          type: object
+          nullable: true
+          properties:
+            open: { type: boolean }
+            locked: { type: boolean }
+            column: { type: string }
+
+    GameVersionHistoryItem:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/VersionKind"
+        created: { type: number }
+        version: { type: number }
+        approved:
+          type: array
+          items:
+            type: object
+            properties:
+              slug: { type: string }
+              active: { type: boolean }
+
+    TeamMember:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        image: { type: string }
+        joined: { type: number }
+        role:
+          type: array
+          items: { type: string }
+
+    WalletRecord:
+      type: object
+      properties:
+        id: { type: string }
+        author:
+          type: object
+          properties:
+            name: { type: string }
+            email: { type: string }
+            image: { type: string }
+            roles:
+              type: array
+              items: { type: string }
+        walletAddr: { type: string }
+        walletType: { type: string }
+        teamAddr: { type: string }
+        activeAt: { type: string }
+
+    ApprovalListItem:
+      type: object
+      description: Simplified; full Zod type is Nt with optional events
+      additionalProperties: true
+
+    ApprovalWithEvents:
+      type: object
+      description: Approval plus events (discriminated union in client Zod)
+      additionalProperties: true
+
+    ApprovalSubmitBody:
+      type: object
+      required: [contract, mathVersion, frontVersion]
+      properties:
+        contract: { type: string, format: uuid }
+        mathVersion: { type: number, minimum: 0 }
+        frontVersion: { type: number, minimum: 0 }
+        comment: { type: string }
+        assets:
+          type: array
+          items: { type: string, format: uuid }
+
+    GuidelineNode:
+      type: object
+      properties:
+        id: { type: number }
+        parentId: { type: number, nullable: true }
+        text: { type: string }
+        sortOrder: { type: integer, minimum: 0 }
+        type:
+          type: string
+          enum: [group, item]
+        minTrustLevel: { type: number, nullable: true }
+        maxTrustLevel: { type: number, nullable: true }
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuidelineNode"
+
+    GameDataSummaryRow:
+      type: object
+      properties:
+        modeName: { type: string }
+        modeCost: { type: number }
+        rtp: { type: number }
+        averageWin: { type: number }
+        numModeSimulations: { type: number }
+        numNonZeroPayouts: { type: number }
+        numNonZeroWeightPayouts: { type: number }
+        uniquePayouts: { type: number }
+        mostProbablePayout: { type: number }
+        minimumWin: { type: number }
+        maximumWin: { type: number }
+        maxWinHitRate: { type: number }
+        nonZeroWinHitRate: { type: number }
+        probOfZeroWin: { type: number }
+        probOfPayoutLessThanBet: { type: number }
+        standardDeviation: { type: number }
+
+    GameDistributionRow:
+      type: object
+      properties:
+        gameMode: { type: string }
+        hitRates:
+          type: object
+          properties:
+            ranges:
+              type: array
+              items:
+                type: array
+                items: { type: number }
+                minItems: 2
+                maxItems: 2
+            rangeValues:
+              type: array
+              items: { type: number }
+        hitRateCounts:
+          type: object
+          properties:
+            ranges:
+              type: array
+              items:
+                type: array
+                items: { type: number }
+            rangeCounts:
+              type: array
+              items: { type: number }
+
+    TeamPaymentsResponse:
+      type: object
+      properties:
+        team:
+          type: object
+          properties:
+            name: { type: string }
+            slug: { type: string }
+            image: { type: string, nullable: true }
+        paymentDetails:
+          type: array
+          items:
+            type: object
+            properties:
+              wallet:
+                type: object
+                nullable: true
+                properties:
+                  address: { type: string }
+                  type: { type: string }
+              monthProfit: { type: number }
+              payment: { type: number }
+              previousCarry: { type: number }
+              currentStanding: { type: number }
+              year: { type: number }
+              month: { type: number }
+
+    TeamRankingRow:
+      type: object
+      properties:
+        image: { type: string, nullable: true }
+        name: { type: string }
+        turnover: { type: number }
+        betCount: { type: number }
+
+    GameRankingRow:
+      type: object
+      properties:
+        team:
+          type: object
+          properties:
+            image: { type: string, nullable: true }
+            name: { type: string }
+        game:
+          type: object
+          properties:
+            image: { type: string, nullable: true }
+            name: { type: string }
+        turnover: { type: number }
+        betCount: { type: number }
+
+    FileUploadBody:
+      type: object
+      required: [team, game, path, size]
+      properties:
+        team: { type: string }
+        game: { type: string }
+        path: { type: string }
+        etag: { type: string, nullable: true }
+        size:
+          type: number
+          description: Must be at most ChunkSize (100 MiB in client)
+
+    FilePart:
+      type: object
+      required: [etag, number, size]
+      properties:
+        etag: { type: string, minLength: 1 }
+        number: { type: integer, minimum: 0 }
+        size: { type: number, exclusiveMinimum: 0 }
+
+    FileMultiUploadBody:
+      type: object
+      required: [filename, team, game, path, size, parts]
+      properties:
+        filename: { type: string, minLength: 1 }
+        team: { type: string }
+        game: { type: string }
+        path: { type: string, minLength: 1 }
+        size:
+          type: number
+          description: Must be greater than ChunkSize
+        parts:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilePart"
+          minItems: 1
+
+    FileMulticopyBody:
+      type: object
+      required: [team, game, pathTo, pathFrom, etag, size, parts]
+      properties:
+        team: { type: string }
+        game: { type: string }
+        pathTo: { type: string, minLength: 1 }
+        pathFrom: { type: string, minLength: 1 }
+        etag: { type: string, minLength: 1 }
+        size: { type: number }
+        parts:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilePart"
+          minItems: 1
+
+    MultiUploadInitResponse:
+      type: object
+      required: [key, uploadID, parts]
+      properties:
+        key: { type: string, minLength: 1 }
+        uploadID: { type: string, minLength: 1 }
+        parts:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: string }
+              size: { type: number }
+              number: { type: integer, minimum: 0 }
+              complete: { type: boolean }
+          minItems: 1
+
+    FileCompleteBody:
+      type: object
+      required: [team, game, uploadID, key, parts]
+      properties:
+        team: { type: string }
+        game: { type: string }
+        uploadID: { type: string }
+        key: { type: string }
+        parts:
+          type: array
+          items:
+            type: object
+            properties:
+              etag: { type: string }
+              size: { type: number }
+              number: { type: integer, minimum: 0 }
+
+    PublishBody:
+      type: object
+      required: [team, game]
+      properties:
+        team: { type: string }
+        game: { type: string }
+
+    PublishError:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        file: { type: string, nullable: true }
+        mode: { type: string, nullable: true }
+
+    GameTile:
+      type: object
+      properties:
+        backgroundAsset: { type: string, nullable: true }
+        backgroundX: { type: number, nullable: true }
+        backgroundY: { type: number, nullable: true }
+        backgroundScale: { type: number, nullable: true }
+        backgroundBrightness: { type: number, nullable: true }
+        foregroundAsset: { type: string, nullable: true }
+        foregroundX: { type: number, nullable: true }
+        foregroundY: { type: number, nullable: true }
+        foregroundScale: { type: number, nullable: true }
+        finalAsset: { type: string, nullable: true }
+        gradient: { type: string, nullable: true }
+        font: { type: string }
+        title:
+          type: array
+          items: { type: string }
+        studio: { type: string }
+
+    GameTilePatch:
+      type: object
+      properties:
+        backgroundAsset: { type: string, nullable: true }
+        backgroundX: { type: number, nullable: true }
+        backgroundY: { type: number, nullable: true }
+        backgroundScale: { type: number, nullable: true }
+        backgroundBrightness: { type: number, nullable: true }
+        foregroundAsset: { type: string, nullable: true }
+        foregroundX: { type: number, nullable: true }
+        foregroundY: { type: number, nullable: true }
+        foregroundScale: { type: number, nullable: true }
+        finalAsset: { type: string, nullable: true }
+        gradient: { type: string, nullable: true }
+        font: { type: string, nullable: true }
+        title:
+          type: array
+          items: { type: string }
+          nullable: true
+        studio: { type: string, nullable: true }
+
+    AdminUserRow:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        image: { type: string }
+        role:
+          type: array
+          items: { type: string }
+        slackId: { type: string, nullable: true }
+        approvalRating:
+          type: object
+          properties:
+            averageRating: { type: number }
+            feedbackCount: { type: number }
+            positiveFeedbackCount: { type: number }
+            positiveFeedbackRate: { type: number }
+        teams:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              slug: { type: string }
+              roles:
+                type: array
+                items: { type: string }
+              image: { type: string }
+              joined: { type: string }
+
+    AdminGameRow:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        image: { type: string }
+        published: { type: boolean }
+        rating: { type: number, nullable: true }
+        deleted: { type: boolean }
+        team:
+          type: object
+          properties:
+            name: { type: string }
+            slug: { type: string }
+            image: { type: string }
+        version:
+          type: object
+          properties:
+            math: { type: number }
+            front: { type: number }
+            published: { type: number }
+        stats:
+          type: object
+          nullable: true
+
+    ApprovalsCountDashboard:
+      type: object
+      properties:
+        total: { type: integer, minimum: 0 }
+        new:
+          type: object
+          properties:
+            total: { type: integer, minimum: 0 }
+            rating:
+              type: object
+              properties:
+                unrated: { type: integer, minimum: 0 }
+                zeroStar: { type: integer, minimum: 0 }
+                oneStar: { type: integer, minimum: 0 }
+                twoStar: { type: integer, minimum: 0 }
+                threeStar: { type: integer, minimum: 0 }
+            status:
+              type: object
+              properties:
+                new: { type: integer, minimum: 0 }
+                awaiting: { type: integer, minimum: 0 }
+                responded: { type: integer, minimum: 0 }
+        live:
+          type: object
+          properties:
+            total: { type: integer, minimum: 0 }
+            rating:
+              type: object
+              properties:
+                unrated: { type: integer, minimum: 0 }
+                zeroStar: { type: integer, minimum: 0 }
+                oneStar: { type: integer, minimum: 0 }
+                twoStar: { type: integer, minimum: 0 }
+                threeStar: { type: integer, minimum: 0 }
+            status:
+              type: object
+              properties:
+                new: { type: integer, minimum: 0 }
+                awaiting: { type: integer, minimum: 0 }
+                responded: { type: integer, minimum: 0 }
+
+    BetLevelCurrency:
+      type: object
+      required: [currency, min, max, default, step, levels]
+      properties:
+        currency: { type: string }
+        min: { type: integer, minimum: 0 }
+        max: { type: integer, minimum: 0 }
+        default: { type: integer, minimum: 0 }
+        step: { type: integer, minimum: 0 }
+        levels:
+          type: array
+          items: { type: integer, minimum: 0 }
+
+    AdminBetListRow:
+      type: object
+      properties:
+        betId: { type: number }
+        operatorSlug: { type: string }
+        game:
+          type: object
+          properties:
+            id: { type: string }
+            slug: { type: string }
+            name: { type: string }
+            image: { type: string, nullable: true }
+        team:
+          type: object
+          properties:
+            slug: { type: string }
+            name: { type: string }
+            image: { type: string, nullable: true }
+        roundType: { type: string }
+        cost: { type: number }
+        currency: { type: string }
+        active: { type: boolean }
+        payout: { type: number }
+        costMultiplier: { type: number }
+        payoutMultiplier: { type: number }
+        costUSD: { type: number }
+        payoutUSD: { type: number }
+        eventId: { type: number }
+        sessionId: { type: string }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+
+    AdminBetDetail:
+      type: object
+      description: Extended bet record (session, credits, debits, actions, etc.)
+      additionalProperties: true
+
+    ReconcilerFailedRow:
+      type: object
+      properties:
+        id: { type: string }
+        attemptCount: { type: number }
+        betId: { type: number }
+        creditId: { type: string }
+        operatorSlug: { type: string }
+        status: { type: string }
+        error: { type: string }
+        params:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string }
+        updatedAt: { type: string }
+
+    ReconcilerFailedRollbackRow:
+      type: object
+      properties:
+        id: { type: string }
+        rollbackId: { type: string }
+        betId: { type: number }
+        operatorSlug: { type: string }
+        attemptCount: { type: number }
+        status: { type: string }
+        error: { type: string }
+        params:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string }
+        updatedAt: { type: string }

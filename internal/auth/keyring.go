@@ -15,3 +15,15 @@ func GetSID(accountID string) (string, error) {
 func DeleteSID(accountID string) error {
 	return keyring.Delete(serviceName, accountID)
 }
+
+func GetActiveSID() (string, error) {
+	cfg, err := LoadConfig()
+	if err != nil {
+		return "", err
+	}
+	active := cfg.ActiveAccount()
+	if active == nil {
+		return "", ErrAccountNotFound
+	}
+	return GetSID(active.ID)
+}
