@@ -31,12 +31,34 @@ type detailErrorMsg struct {
 	err error
 }
 
+type publishResultMsg struct {
+	result *api.PublishResult
+	err    error
+}
+
+type publishPollMsg struct {
+	versions []api.GameVersionHistoryItem
+	err      error
+}
+
+type publishPollTickMsg struct{}
+
 type state int
 
 const (
 	stateLoading state = iota
 	stateReady
 	stateError
+)
+
+type publishState int
+
+const (
+	publishNone publishState = iota
+	publishSelecting
+	publishRunning
+	publishPolling
+	publishDone
 )
 
 type tab int
@@ -103,6 +125,16 @@ type Model struct {
 	err       error
 	width     int
 	height    int
+
+	// Publish state
+	pubState   publishState
+	pubCursor  int // 0=math, 1=front
+	pubType    string
+	pubResult  *api.PublishResult
+	pubErr     error
+	pubMsg     string
+	pubPollN   int
+	pubVersion int
 }
 
 func New(client *api.Client, teamSlug, gameSlug, gameName string) Model {
@@ -161,11 +193,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.err = msg.err
 		return m, nil
 
+	case publishResultMsg:
+		return m.handlePublishResult(msg)
+
+	case publishPollTickMsg:
+		return m, m.pollVersions()
+
+	case publishPollMsg:
+		return m.handlePublishPoll(msg)
+
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 
 	case spinner.TickMsg:
-		if m.state == stateLoading {
+		if m.state == stateLoading || m.pubState == publishRunning || m.pubState == publishPolling {
 			var cmd tea.Cmd
 			m.spinner, cmd = m.spinner.Update(msg)
 			return m, cmd
@@ -178,6 +219,24 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	key := msg.String()
 
+	// During publish selecting, intercept keys
+	if m.pubState == publishSelecting {
+		return m.handlePublishSelectKey(key)
+	}
+
+	// During publish done, any key clears the message
+	if m.pubState == publishDone {
+		m.pubState = publishNone
+		m.pubMsg = ""
+		m.pubErr = nil
+		return m, nil
+	}
+
+	// During publish running/polling, only allow esc to cancel view
+	if m.pubState == publishRunning || m.pubState == publishPolling {
+		return m, nil
+	}
+
 	switch key {
 	case "ctrl+c", "q":
 		return m, tea.Quit
@@ -187,6 +246,12 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		if m.state == stateReady {
 			teamSlug, gameSlug := m.teamSlug, m.gameSlug
 			return m, func() tea.Msg { return UploadRequestMsg{TeamSlug: teamSlug, GameSlug: gameSlug} }
+		}
+	case "p":
+		if m.state == stateReady {
+			m.pubState = publishSelecting
+			m.pubCursor = 0
+			return m, nil
 		}
 	case "tab":
 		m.activeTab = (m.activeTab + 1) % tabCount
@@ -220,6 +285,127 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		}
 	}
 
+	return m, nil
+}
+
+func (m Model) handlePublishSelectKey(key string) (Model, tea.Cmd) {
+	switch key {
+	case "esc", "q":
+		m.pubState = publishNone
+		return m, nil
+	case "up", "k":
+		if m.pubCursor > 0 {
+			m.pubCursor--
+		}
+		return m, nil
+	case "down", "j":
+		if m.pubCursor < 1 {
+			m.pubCursor++
+		}
+		return m, nil
+	case "enter":
+		if m.pubCursor == 0 {
+			m.pubType = "math"
+		} else {
+			m.pubType = "front"
+		}
+		m.pubState = publishRunning
+		m.pubMsg = ""
+		m.pubErr = nil
+		return m, tea.Batch(m.spinner.Tick, m.doPublish())
+	}
+	return m, nil
+}
+
+func (m Model) doPublish() tea.Cmd {
+	client := m.client
+	team, game, kind := m.teamSlug, m.gameSlug, m.pubType
+	return func() tea.Msg {
+		result, err := client.Publish(context.Background(), team, game, kind)
+		return publishResultMsg{result: result, err: err}
+	}
+}
+
+func (m Model) handlePublishResult(msg publishResultMsg) (Model, tea.Cmd) {
+	if msg.err != nil {
+		m.pubState = publishDone
+		m.pubErr = msg.err
+		m.pubMsg = fmt.Sprintf("Publish %s failed: %v", m.pubType, msg.err)
+		return m, nil
+	}
+
+	if msg.result.IsError() {
+		m.pubState = publishDone
+		m.pubErr = fmt.Errorf("%s", msg.result.Message)
+		m.pubMsg = fmt.Sprintf("Publish %s error [%s]:\n  %s", m.pubType, msg.result.Code, msg.result.Message)
+		if msg.result.File != nil {
+			m.pubMsg += fmt.Sprintf("\n  File: %s", *msg.result.File)
+		}
+		if msg.result.Mode != nil {
+			m.pubMsg += fmt.Sprintf("\n  Mode: %s", *msg.result.Mode)
+		}
+		return m, nil
+	}
+
+	m.pubResult = msg.result
+	m.pubVersion = msg.result.Version
+	m.pubState = publishPolling
+	m.pubPollN = 0
+	m.pubMsg = fmt.Sprintf("Published %s v%d (changed: %v). Refreshing versions...", m.pubType, msg.result.Version, msg.result.Changed)
+	return m, tea.Batch(m.spinner.Tick, m.pollAfterDelay())
+}
+
+func (m Model) pollAfterDelay() tea.Cmd {
+	return tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+		return publishPollTickMsg{}
+	})
+}
+
+func (m Model) pollVersions() tea.Cmd {
+	client := m.client
+	team, game := m.teamSlug, m.gameSlug
+	return func() tea.Msg {
+		versions, err := client.GetGameVersions(context.Background(), team, game)
+		return publishPollMsg{versions: versions, err: err}
+	}
+}
+
+func (m Model) handlePublishPoll(msg publishPollMsg) (Model, tea.Cmd) {
+	m.pubPollN++
+
+	if msg.err != nil && m.pubPollN < 10 {
+		return m, m.pollAfterDelay()
+	}
+
+	if msg.err != nil {
+		m.pubState = publishDone
+		m.pubMsg = fmt.Sprintf("Published %s v%d but failed to refresh versions: %v", m.pubType, m.pubVersion, msg.err)
+		return m, nil
+	}
+
+	sort.Slice(msg.versions, func(i, j int) bool {
+		return msg.versions[i].Created > msg.versions[j].Created
+	})
+
+	found := false
+	for _, v := range msg.versions {
+		if v.Type == m.pubType && v.Version == m.pubVersion {
+			found = true
+			break
+		}
+	}
+
+	if !found && m.pubPollN < 10 {
+		return m, m.pollAfterDelay()
+	}
+
+	m.versions = msg.versions
+	m.pubState = publishDone
+	if found {
+		m.pubMsg = fmt.Sprintf("Published %s v%d successfully!", m.pubType, m.pubVersion)
+	} else {
+		m.pubMsg = fmt.Sprintf("Published %s v%d — version not yet visible (may take a moment)", m.pubType, m.pubVersion)
+	}
 	return m, nil
 }
 
@@ -269,7 +455,9 @@ func (m Model) View() string {
 			m.viewVersions(&b)
 		}
 
-		b.WriteString("\n  Tab: next tab • u: upload • Esc: back\n")
+		m.viewPublishOverlay(&b)
+
+		b.WriteString("\n  Tab: next tab • u: upload • p: publish • Esc: back\n")
 
 	case stateError:
 		b.WriteString(fmt.Sprintf("  Error: %s\n\n", m.err.Error()))
@@ -277,6 +465,69 @@ func (m Model) View() string {
 	}
 
 	return b.String()
+}
+
+func (m Model) viewPublishOverlay(b *strings.Builder) {
+	switch m.pubState {
+	case publishSelecting:
+		b.WriteString("\n  ─── Publish ───\n\n")
+		opts := []string{"Math", "Front-end"}
+		for i, opt := range opts {
+			cursor := "  "
+			if i == m.pubCursor {
+				cursor = "> "
+			}
+			b.WriteString(fmt.Sprintf("  %s%s\n", cursor, opt))
+		}
+		b.WriteString("\n  j/k: navigate • Enter: publish • Esc: cancel\n")
+	case publishRunning:
+		b.WriteString(fmt.Sprintf("\n  %s Publishing %s...\n", m.spinner.View(), m.pubType))
+	case publishPolling:
+		b.WriteString(fmt.Sprintf("\n  %s %s\n", m.spinner.View(), m.pubMsg))
+	case publishDone:
+		icon := "✓"
+		if m.pubErr != nil {
+			icon = "✗"
+		}
+		maxW := m.width - 6
+		if maxW < 40 {
+			maxW = 40
+		}
+		lines := strings.Split(m.pubMsg, "\n")
+		first := wrapLine(lines[0], maxW)
+		b.WriteString(fmt.Sprintf("\n  %s %s\n", icon, first[0]))
+		for _, w := range first[1:] {
+			b.WriteString(fmt.Sprintf("    %s\n", w))
+		}
+		for _, line := range lines[1:] {
+			for _, wrapped := range wrapLine(line, maxW) {
+				b.WriteString(fmt.Sprintf("    %s\n", wrapped))
+			}
+		}
+		b.WriteString("  Press any key to dismiss.\n")
+	}
+}
+
+func wrapLine(s string, maxWidth int) []string {
+	if len(s) <= maxWidth {
+		return []string{s}
+	}
+	var lines []string
+	for len(s) > maxWidth {
+		cut := maxWidth
+		for cut > 0 && s[cut] != ' ' {
+			cut--
+		}
+		if cut == 0 {
+			cut = maxWidth
+		}
+		lines = append(lines, s[:cut])
+		s = strings.TrimLeft(s[cut:], " ")
+	}
+	if len(s) > 0 {
+		lines = append(lines, s)
+	}
+	return lines
 }
 
 func (m Model) viewTabs() string {

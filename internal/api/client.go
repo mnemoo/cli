@@ -107,6 +107,14 @@ func (c *Client) getJSON(ctx context.Context, url string, dest any) error {
 }
 
 func (c *Client) postJSON(ctx context.Context, url string, body any, dest any) error {
+	return c.doPostJSON(ctx, c.http, url, body, dest)
+}
+
+func (c *Client) postJSONNoTimeout(ctx context.Context, url string, body any, dest any) error {
+	return c.doPostJSON(ctx, c.s3http, url, body, dest)
+}
+
+func (c *Client) doPostJSON(ctx context.Context, hc *http.Client, url string, body any, dest any) error {
 	data, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("marshaling body: %w", err)
@@ -119,7 +127,7 @@ func (c *Client) postJSON(ctx context.Context, url string, body any, dest any) e
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: "sid", Value: c.sid})
 
-	resp, err := c.http.Do(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}

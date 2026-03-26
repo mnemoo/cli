@@ -117,20 +117,14 @@ func RunUpload(args []string) error {
 	// Publish
 	if *publish {
 		fmt.Printf("Publishing %s...\n", *uploadType)
-		switch *uploadType {
-		case "math":
-			resp, err := client.PublishMath(ctx, *team, *game)
-			if err != nil {
-				return fmt.Errorf("publish math failed: %w", err)
-			}
-			fmt.Printf("Published math v%d (changed: %v)\n", resp.Version, resp.Changed)
-		case "front":
-			resp, err := client.PublishFront(ctx, *team, *game)
-			if err != nil {
-				return fmt.Errorf("publish front failed: %w", err)
-			}
-			fmt.Printf("Published front v%d (changed: %v)\n", resp.Version, resp.Changed)
+		result, err := client.Publish(ctx, *team, *game, *uploadType)
+		if err != nil {
+			return fmt.Errorf("publish %s failed: %w", *uploadType, err)
 		}
+		if result.IsError() {
+			return fmt.Errorf("publish %s error [%s]: %s", *uploadType, result.Code, result.Error())
+		}
+		fmt.Printf("Published %s v%d (changed: %v)\n", *uploadType, result.Version, result.Changed)
 	}
 
 	return nil

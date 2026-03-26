@@ -88,6 +88,19 @@ func (c *Client) PublishFront(ctx context.Context, team, game string) (*PublishR
 	return &resp, nil
 }
 
+func (c *Client) Publish(ctx context.Context, team, game, kind string) (*PublishResult, error) {
+	endpoint := fmt.Sprintf("%s/file/publish/%s", baseURL, kind)
+	body := PublishBody{Team: team, Game: game}
+	var result PublishResult
+	if err := c.postJSONNoTimeout(ctx, endpoint, body, &result); err != nil {
+		return nil, fmt.Errorf("publish %s: %w", kind, err)
+	}
+	if result.IsError() {
+		return &result, nil
+	}
+	return &result, nil
+}
+
 func (c *Client) UploadToS3(ctx context.Context, presignedURL string, data []byte, contentType string) error {
 	return c.putBytes(ctx, presignedURL, data, contentType)
 }

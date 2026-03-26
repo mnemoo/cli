@@ -95,6 +95,30 @@ type PublishResponse struct {
 	Changed bool `json:"changed"`
 }
 
+type PublishResult struct {
+	Version int     `json:"version"`
+	Changed bool    `json:"changed"`
+	Code    string  `json:"code"`
+	Message string  `json:"message"`
+	File    *string `json:"file,omitempty"`
+	Mode    *string `json:"mode,omitempty"`
+}
+
+func (r *PublishResult) IsError() bool {
+	return r.Code != ""
+}
+
+func (r *PublishResult) Error() string {
+	s := r.Message
+	if r.File != nil {
+		s += " (file: " + *r.File + ")"
+	}
+	if r.Mode != nil {
+		s += " (mode: " + *r.Mode + ")"
+	}
+	return s
+}
+
 type PublishError struct {
 	Code    string  `json:"code"`
 	Message string  `json:"message"`
