@@ -3,7 +3,6 @@ package gamedetail
 import (
 	"context"
 	"fmt"
-	"math"
 	"sort"
 	"strings"
 	"time"
@@ -16,6 +15,11 @@ import (
 )
 
 type GoBackMsg struct{}
+
+type UploadRequestMsg struct {
+	TeamSlug string
+	GameSlug string
+}
 
 type detailLoadedMsg struct {
 	detail   *api.TeamGameDetail
@@ -130,10 +134,7 @@ func (m Model) loadDetail() tea.Cmd {
 		if err != nil {
 			return detailErrorMsg{err: err}
 		}
-		stats, err := client.GetGameStats(ctx, teamSlug, gameSlug)
-		if err != nil {
-			return detailErrorMsg{err: err}
-		}
+		stats, _ := client.GetGameStats(ctx, teamSlug, gameSlug)
 		sort.Slice(versions, func(i, j int) bool {
 			return versions[i].Created > versions[j].Created
 		})
@@ -182,6 +183,11 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		return m, func() tea.Msg { return GoBackMsg{} }
+	case "u":
+		if m.state == stateReady {
+			teamSlug, gameSlug := m.teamSlug, m.gameSlug
+			return m, func() tea.Msg { return UploadRequestMsg{TeamSlug: teamSlug, GameSlug: gameSlug} }
+		}
 	case "tab":
 		m.activeTab = (m.activeTab + 1) % tabCount
 		return m, nil
@@ -263,7 +269,7 @@ func (m Model) View() string {
 			m.viewVersions(&b)
 		}
 
-		b.WriteString("\n  Tab: next tab • Esc: back\n")
+		b.WriteString("\n  Tab: next tab • u: upload • Esc: back\n")
 
 	case stateError:
 		b.WriteString(fmt.Sprintf("  Error: %s\n\n", m.err.Error()))
@@ -429,11 +435,16 @@ func ratingStars(rating *float64) string {
 	if rating == nil {
 		return "—"
 	}
-	stars := int(math.Round(*rating / 333.0))
-	if stars > 3 {
+	r := *rating
+	var stars int
+	switch {
+	case r >= 90:
 		stars = 3
-	}
-	if stars <= 0 {
+	case r >= 60:
+		stars = 2
+	case r >= 30:
+		stars = 1
+	default:
 		return "☆☆☆"
 	}
 	return strings.Repeat("★", stars) + strings.Repeat("☆", 3-stars)

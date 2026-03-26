@@ -3,7 +3,6 @@ package games
 import (
 	"context"
 	"fmt"
-	"math"
 	"strings"
 
 	"charm.land/bubbles/v2/spinner"
@@ -165,10 +164,10 @@ func (m Model) View() string {
 				periodLabel = "Day Profit"
 			}
 
-			header := fmt.Sprintf("  %-3s %-24s %-8s %-8s %-14s %s\n",
-				"#", "Name", "Rating", "Status", periodLabel, "Turnover")
+			header := fmt.Sprintf("  %-3s %-24s %-8s %-14s %s\n",
+				"#", "Name", "Rating", periodLabel, "Turnover")
 			b.WriteString(header)
-			b.WriteString("  " + strings.Repeat("─", 75) + "\n")
+			b.WriteString("  " + strings.Repeat("─", 67) + "\n")
 
 			for i, g := range m.games {
 				cursor := " "
@@ -177,7 +176,6 @@ func (m Model) View() string {
 				}
 
 				rating := ratingStars(g.Rating)
-				status := statusLabel(g.Published)
 				profit := "—"
 				turnover := "—"
 
@@ -197,8 +195,8 @@ func (m Model) View() string {
 					name = name[:22] + "…"
 				}
 
-				b.WriteString(fmt.Sprintf("  %s%-3d %-24s %-8s %-8s %-14s %s\n",
-					cursor, i+1, name, rating, status, profit, turnover))
+				b.WriteString(fmt.Sprintf("  %s%-3d %-24s %-8s %-14s %s\n",
+					cursor, i+1, name, rating, profit, turnover))
 			}
 		}
 
@@ -220,21 +218,19 @@ func ratingStars(rating *float64) string {
 	if rating == nil {
 		return "—"
 	}
-	stars := int(math.Round(*rating / 333.0))
-	if stars > 3 {
+	r := *rating
+	var stars int
+	switch {
+	case r >= 90:
 		stars = 3
-	}
-	if stars <= 0 {
+	case r >= 60:
+		stars = 2
+	case r >= 30:
+		stars = 1
+	default:
 		return "☆☆☆"
 	}
 	return strings.Repeat("★", stars) + strings.Repeat("☆", 3-stars)
-}
-
-func statusLabel(published bool) string {
-	if published {
-		return "Live"
-	}
-	return "Draft"
 }
 
 func formatProfit(raw float64) string {

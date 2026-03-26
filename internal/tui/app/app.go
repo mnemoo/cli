@@ -13,6 +13,7 @@ import (
 	"github.com/mnemoo/cli/internal/tui/games"
 	"github.com/mnemoo/cli/internal/tui/login"
 	"github.com/mnemoo/cli/internal/tui/teams"
+	uploadui "github.com/mnemoo/cli/internal/tui/upload"
 )
 
 type screen int
@@ -25,6 +26,7 @@ const (
 	screenTeams
 	screenGames
 	screenGameDetail
+	screenUpload
 )
 
 type initDoneMsg struct {
@@ -49,6 +51,7 @@ type Model struct {
 	teams        teams.Model
 	games        games.Model
 	gameDetail   gamedetail.Model
+	upload       uploadui.Model
 	spinner      spinner.Model
 	apiClient    *api.Client
 	selectedTeam *api.TeamListItem
@@ -110,6 +113,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateGames(msg)
 	case screenGameDetail:
 		return m.updateGameDetail(msg)
+	case screenUpload:
+		return m.updateUpload(msg)
 	}
 
 	return m, nil
@@ -132,6 +137,8 @@ func (m Model) View() tea.View {
 		s = m.games.View()
 	case screenGameDetail:
 		s = m.gameDetail.View()
+	case screenUpload:
+		s = m.upload.View()
 	}
 	return tea.NewView(s)
 }
@@ -251,9 +258,11 @@ func (m Model) updateGames(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updateGameDetail(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case gamedetail.GoBackMsg:
 		return m.switchToGames(m.selectedTeam.Slug, m.selectedTeam.Name)
+	case gamedetail.UploadRequestMsg:
+		return m.switchToUpload(msg.TeamSlug, msg.GameSlug)
 	default:
 		var cmd tea.Cmd
 		m.gameDetail, cmd = m.gameDetail.Update(msg)
@@ -291,6 +300,23 @@ func (m Model) switchToGameDetail(teamSlug, gameSlug, gameName string) (tea.Mode
 	m.gameDetail = gamedetail.New(m.apiClient, teamSlug, gameSlug, gameName)
 	m.screen = screenGameDetail
 	return m, m.gameDetail.Init()
+}
+
+func (m Model) updateUpload(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg.(type) {
+	case uploadui.GoBackMsg:
+		return m.switchToGameDetail(m.selectedTeam.Slug, m.selectedGame.Slug, m.selectedGame.Name)
+	default:
+		var cmd tea.Cmd
+		m.upload, cmd = m.upload.Update(msg)
+		return m, cmd
+	}
+}
+
+func (m Model) switchToUpload(teamSlug, gameSlug string) (tea.Model, tea.Cmd) {
+	m.upload = uploadui.New(m.apiClient, teamSlug, gameSlug, m.width, m.height)
+	m.screen = screenUpload
+	return m, m.upload.Init()
 }
 
 func (m *Model) initAPIClient() {

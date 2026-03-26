@@ -1,10 +1,13 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
@@ -13,12 +16,14 @@ const baseURL = "https://stake-engine.com/api"
 type Client struct {
 	sid    string
 	http   *http.Client
+	s3http *http.Client
 }
 
 func NewClient(sid string) *Client {
 	return &Client{
-		sid:  sid,
-		http: &http.Client{Timeout: 15 * time.Second},
+		sid:    sid,
+		http:   &http.Client{Timeout: 15 * time.Second},
+		s3http: &http.Client{},
 	}
 }
 
@@ -99,4 +104,85 @@ func (c *Client) getJSON(ctx context.Context, url string, dest any) error {
 		return fmt.Errorf("decoding response: %w", err)
 	}
 	return nil
+}
+
+func (c *Client) postJSON(ctx context.Context, url string, body any, dest any) error {
+	data, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshaling body: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: "sid", Value: c.sid})
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("session expired (HTTP %d)", resp.StatusCode)
+	}
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	if dest != nil {
+		if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
+			return fmt.Errorf("decoding response: %w", err)
+		}
+	}
+	return nil
+}
+
+func (c *Client) putBytes(ctx context.Context, url string, data []byte, contentType string) error {
+	return c.putBytesWithCounter(ctx, url, data, contentType, nil)
+}
+
+func (c *Client) putBytesWithCounter(ctx context.Context, url string, data []byte, contentType string, counter *atomic.Int64) error {
+	var body io.Reader = bytes.NewReader(data)
+	if counter != nil {
+		body = &countingReader{r: body, n: counter}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, body)
+	if err != nil {
+		return fmt.Errorf("creating PUT request: %w", err)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	req.ContentLength = int64(len(data))
+
+	resp, err := c.s3http.Do(req)
+	if err != nil {
+		return fmt.Errorf("S3 upload failed (%s, %d bytes): %w", contentType, len(data), err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("S3 returned HTTP %d (%d bytes uploaded): %s",
+			resp.StatusCode, len(data), string(respBody))
+	}
+	return nil
+}
+
+type countingReader struct {
+	r io.Reader
+	n *atomic.Int64
+}
+
+func (cr *countingReader) Read(p []byte) (int, error) {
+	n, err := cr.r.Read(p)
+	if n > 0 {
+		cr.n.Add(int64(n))
+	}
+	return n, err
 }
