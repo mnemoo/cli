@@ -67,7 +67,7 @@ func RunUpload(args []string) error {
 	// Auth
 	sid, err := auth.GetActiveSID()
 	if err != nil {
-		return fmt.Errorf("not logged in: %w (run 'stakecli' to login first)", err)
+		return fmt.Errorf("not logged in: %w\n\nFor CI/CD, set the STAKE_SID environment variable.\nFor interactive use, run 'stakecli' to login first.", err)
 	}
 
 	client := api.NewClient(sid)

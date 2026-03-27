@@ -4,10 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 )
 
-const apiBaseURL = "https://stake-engine.com/api"
+var apiBaseURL = getAPIBaseURL()
+
+func getAPIBaseURL() string {
+	if u := os.Getenv("STAKE_API_URL"); u != "" {
+		return u
+	}
+	return "https://stake-engine.com/api"
+}
 
 type User struct {
 	ID    string `json:"id"`

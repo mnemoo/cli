@@ -1,6 +1,10 @@
 package auth
 
-import "github.com/zalando/go-keyring"
+import (
+	"os"
+
+	"github.com/zalando/go-keyring"
+)
 
 const serviceName = "stakecli"
 
@@ -17,6 +21,10 @@ func DeleteSID(accountID string) error {
 }
 
 func GetActiveSID() (string, error) {
+	if sid := os.Getenv("STAKE_SID"); sid != "" {
+		return sid, nil
+	}
+
 	cfg, err := LoadConfig()
 	if err != nil {
 		return "", err

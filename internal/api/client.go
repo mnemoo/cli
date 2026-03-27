@@ -7,11 +7,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sync/atomic"
 	"time"
 )
 
-const baseURL = "https://stake-engine.com/api"
+var baseURL = getBaseURL()
+
+func getBaseURL() string {
+	if u := os.Getenv("STAKE_API_URL"); u != "" {
+		return u
+	}
+	return "https://stake-engine.com/api"
+}
 
 type Client struct {
 	sid    string
