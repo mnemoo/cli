@@ -70,6 +70,40 @@ func RunUpload(args []string) error {
 		return fmt.Errorf("not logged in: %w\n\nFor CI/CD, set the STAKE_SID environment variable.\nFor interactive use, run 'stakecli' to login first.", err)
 	}
 
+	// Math compliance
+	if *uploadType == "math" {
+		fmt.Println("\nMath compliance check:")
+		result := upload.RunMathCompliance(*dirPath)
+		for _, c := range result.Checks {
+			var icon string
+			switch c.Status {
+			case "pass":
+				icon = "  PASS "
+			case "fail":
+				icon = "  FAIL "
+			case "warn":
+				icon = "  WARN "
+			case "info":
+				icon = "  INFO "
+			default:
+				icon = "       "
+			}
+			fmt.Printf("  %s %s: %s\n", icon, c.Name, c.Details)
+		}
+		if result.HasError && !*yes {
+			fmt.Print("\n  Issues found. Proceed anyway? [y/N]: ")
+			reader := bufio.NewReader(os.Stdin)
+			input, _ := reader.ReadString('\n')
+			if strings.TrimSpace(strings.ToLower(input)) != "y" {
+				return fmt.Errorf("aborted by user")
+			}
+		} else if result.HasError {
+			fmt.Println("\n  Issues found, proceeding (--yes)")
+		} else {
+			fmt.Println("\n  All checks passed.")
+		}
+	}
+
 	client := api.NewClient(sid)
 	u := upload.NewUploader(client)
 	ctx := context.Background()

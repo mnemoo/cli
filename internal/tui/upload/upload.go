@@ -27,8 +27,9 @@ const (
 	stagePathInput
 	stageFilePicker
 	stageScanning
-	stageConfirm
 	stageSafetyWarn
+	stageCompliance
+	stageConfirm
 	stageUploading
 	stageDone
 )
@@ -59,6 +60,15 @@ type uploadFinishedMsg struct{}
 
 type bytesTickMsg struct{}
 
+type complianceDoneMsg struct {
+	result upload.ComplianceResult
+}
+
+type publishDoneMsg struct {
+	result *api.PublishResult
+	err    error
+}
+
 type Model struct {
 	stage      stage
 	team       string
@@ -81,6 +91,14 @@ type Model struct {
 	localFiles []upload.LocalFile
 	warnings   []upload.SafetyWarning
 	plan       *upload.UploadPlan
+	compliance upload.ComplianceResult
+	compliancePage int
+	doneCursor     int
+	uploadSucceeded bool
+	publishInFlight bool
+	published       bool
+	publishMsg      string
+	publishErr      error
 
 	// Upload state
 	uploadCh       <-chan upload.ProgressEvent
@@ -186,6 +204,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m.updateScanning(msg)
 	case stageSafetyWarn:
 		return m.updateSafetyWarn(msg)
+	case stageCompliance:
+		return m.updateCompliance(msg)
 	case stageConfirm:
 		return m.updateConfirm(msg)
 	case stageUploading:
@@ -208,6 +228,8 @@ func (m Model) View() string {
 		return m.viewScanning()
 	case stageSafetyWarn:
 		return m.viewSafetyWarn()
+	case stageCompliance:
+		return m.viewCompliance()
 	case stageConfirm:
 		return m.viewConfirm()
 	case stageUploading:
@@ -412,7 +434,12 @@ func (m Model) updateScanning(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		return m.startPlanning()
+		return m.afterSafetyCheck()
+	case complianceDoneMsg:
+		m.compliance = msg.result
+		m.compliancePage = 0
+		m.stage = stageCompliance
+		return m, nil
 	case planDoneMsg:
 		if msg.err != nil {
 			m.err = msg.err
@@ -439,7 +466,7 @@ func (m Model) updateSafetyWarn(msg tea.Msg) (Model, tea.Cmd) {
 		switch key.String() {
 		case "y":
 			if !upload.HasErrors(m.warnings) {
-				return m.startPlanning()
+				return m.afterSafetyCheck()
 			}
 		case "n", "q", "esc":
 			m.stage = stagePathInput
@@ -470,7 +497,257 @@ func (m Model) viewSafetyWarn() string {
 	return b.String()
 }
 
-// --- Planning / Confirm ---
+// --- Compliance / Planning / Confirm ---
+
+func (m Model) afterSafetyCheck() (Model, tea.Cmd) {
+	if m.uploadType == "math" {
+		return m.startCompliance()
+	}
+	return m.startPlanning()
+}
+
+func (m Model) startCompliance() (Model, tea.Cmd) {
+	m.stage = stageScanning
+	m.scanPhase = "Checking math compliance"
+	dirPath := m.dirPath
+	return m, tea.Batch(m.spinner.Tick, func() tea.Msg {
+		result := upload.RunMathCompliance(dirPath)
+		return complianceDoneMsg{result: result}
+	})
+}
+
+func (m Model) updateCompliance(msg tea.Msg) (Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyPressMsg); ok {
+		totalPages := complianceTotalPages(len(m.compliance.ModeSummaries))
+		hasIssues := m.compliance.FailuresCount > 0 || m.compliance.WarningsCount > 0
+		switch key.String() {
+		case "enter":
+			return m.startPlanning()
+		case "s":
+			if hasIssues {
+				return m.startPlanning()
+			}
+			return m, nil
+		case "r":
+			m.stage = stageScanning
+			m.scanPhase = "Rescanning"
+			return m, tea.Batch(m.spinner.Tick, m.doScan())
+		case "down", "j", "right", "l":
+			if totalPages > 1 && m.compliancePage < totalPages-1 {
+				m.compliancePage++
+			}
+			return m, nil
+		case "up", "k", "left", "h":
+			if totalPages > 1 && m.compliancePage > 0 {
+				m.compliancePage--
+			}
+			return m, nil
+		case "q", "esc":
+			m.stage = stagePathInput
+			m.pathFocus = 0
+			m.pathInput.Focus()
+			return m, textinput.Blink
+		}
+	}
+	return m, nil
+}
+
+func (m Model) viewCompliance() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("\n  Math Compliance Check — %s/%s\n\n", m.team, m.game))
+	failCount := m.compliance.FailuresCount
+	warnCount := m.compliance.WarningsCount
+
+	b.WriteString(fmt.Sprintf("  Modes: %d • Failures: %d • Warnings: %d\n\n",
+		len(m.compliance.ModeSummaries), failCount, warnCount))
+
+	rows := m.compliance.ModeSummaries
+	start, end, page, totalPages := compliancePageRange(len(rows), m.compliancePage)
+	pageRows := rows[start:end]
+
+	if len(pageRows) > 0 {
+		cols := complianceColumns()
+		available := m.width - 4
+		if available < 40 {
+			available = 40
+		}
+		for len(cols) > 1 && complianceTableWidth(cols) > available {
+			cols = cols[:len(cols)-1]
+		}
+
+		b.WriteString("  " + complianceRenderHeader(cols) + "\n")
+		b.WriteString("  " + strings.Repeat("-", len(complianceRenderHeader(cols))) + "\n")
+		for _, r := range pageRows {
+			b.WriteString("  " + complianceRenderRow(cols, r) + "\n")
+		}
+	} else {
+		b.WriteString("  No mode summary available.\n")
+	}
+
+	if totalPages > 1 {
+		b.WriteString(fmt.Sprintf("\n  Page %d/%d • j/k: next/prev page\n", page+1, totalPages))
+	}
+
+	b.WriteString("\n")
+	if failCount > 0 || warnCount > 0 {
+		b.WriteString("  Enter: continue • s: proceed anyway • r: reload • q: go back\n")
+	} else {
+		b.WriteString("  Enter: continue • r: reload • q: go back\n")
+	}
+
+	return b.String()
+}
+
+type complianceColumn struct {
+	Title string
+	Width int
+	Value func(upload.ComplianceModeSummary) string
+}
+
+func complianceColumns() []complianceColumn {
+	return []complianceColumn{
+		{Title: "Name", Width: 16, Value: func(m upload.ComplianceModeSummary) string { return m.Name }},
+		{Title: "Cost", Width: 8, Value: func(m upload.ComplianceModeSummary) string { return fmt.Sprintf("%.2f", m.Cost) }},
+		{Title: "RTP", Width: 8, Value: func(m upload.ComplianceModeSummary) string { return formatMetricPercent(m.RTP, m.HasStats) }},
+		{Title: "Volatility", Width: 18, Value: func(m upload.ComplianceModeSummary) string { return formatVolatility(m) }},
+		{Title: "HitRate", Width: 9, Value: func(m upload.ComplianceModeSummary) string { return formatMetricPercent(m.HitRate, m.HasStats) }},
+		{Title: "MaxWin", Width: 9, Value: func(m upload.ComplianceModeSummary) string { return formatMetricX(m.MaxWin, m.HasStats) }},
+		{Title: "MaxWinHR", Width: 12, Value: func(m upload.ComplianceModeSummary) string { return formatOddsCell(m.MaxWinHitRate, m.HasStats) }},
+		{Title: "SimCount", Width: 10, Value: func(m upload.ComplianceModeSummary) string { return formatSimCount(m.SimCount, m.HasStats) }},
+	}
+}
+
+func complianceTableWidth(cols []complianceColumn) int {
+	if len(cols) == 0 {
+		return 0
+	}
+	width := 0
+	for i, c := range cols {
+		width += c.Width
+		if i > 0 {
+			width += 3
+		}
+	}
+	return width
+}
+
+func complianceRenderHeader(cols []complianceColumn) string {
+	parts := make([]string, 0, len(cols))
+	for _, c := range cols {
+		parts = append(parts, padAndTrim(c.Title, c.Width))
+	}
+	return strings.Join(parts, " | ")
+}
+
+func complianceRenderRow(cols []complianceColumn, row upload.ComplianceModeSummary) string {
+	parts := make([]string, 0, len(cols))
+	for _, c := range cols {
+		parts = append(parts, padAndTrim(c.Value(row), c.Width))
+	}
+	return strings.Join(parts, " | ")
+}
+
+func complianceTotalPages(totalRows int) int {
+	if totalRows <= 0 {
+		return 1
+	}
+	pages := totalRows / 10
+	if totalRows%10 != 0 {
+		pages++
+	}
+	return pages
+}
+
+func compliancePageRange(totalRows, page int) (start int, end int, safePage int, totalPages int) {
+	totalPages = complianceTotalPages(totalRows)
+	safePage = page
+	if safePage < 0 {
+		safePage = 0
+	}
+	if safePage >= totalPages {
+		safePage = totalPages - 1
+	}
+	start = safePage * 10
+	end = start + 10
+	if end > totalRows {
+		end = totalRows
+	}
+	if start > end {
+		start = end
+	}
+	return start, end, safePage, totalPages
+}
+
+func padAndTrim(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if len(s) > width {
+		if width == 1 {
+			return "…"
+		}
+		return s[:width-1] + "…"
+	}
+	return s + strings.Repeat(" ", width-len(s))
+}
+
+func formatMetricPercent(v float64, hasStats bool) string {
+	if !hasStats {
+		return "-"
+	}
+	return fmt.Sprintf("%.2f%%", v)
+}
+
+func formatMetricX(v float64, hasStats bool) string {
+	if !hasStats {
+		return "-"
+	}
+	return fmt.Sprintf("%.2fx", v)
+}
+
+func formatSimCount(v int, hasStats bool) string {
+	if !hasStats {
+		return "-"
+	}
+	return fmt.Sprintf("%d", v)
+}
+
+func formatOddsCell(v string, hasStats bool) string {
+	if !hasStats || v == "" {
+		return "-"
+	}
+	return v
+}
+
+func formatVolatility(m upload.ComplianceModeSummary) string {
+	if !m.HasStats {
+		return "-"
+	}
+	return fmt.Sprintf("%s(%.2fσ)", shortVolTag(m.VolatilityTag), m.Volatility)
+}
+
+func shortVolTag(tag string) string {
+	switch tag {
+	case "Very Low":
+		return "VLow"
+	case "Low":
+		return "Low"
+	case "Medium-Low":
+		return "Med-Low"
+	case "Medium":
+		return "Med"
+	case "Medium-High":
+		return "Med-High"
+	case "High":
+		return "High"
+	case "Very High":
+		return "VHigh"
+	case "Extreme":
+		return "Extreme"
+	default:
+		return tag
+	}
+}
 
 func (m Model) startPlanning() (Model, tea.Cmd) {
 	m.stage = stageScanning
@@ -596,6 +873,12 @@ func (m Model) startUpload() (Model, tea.Cmd) {
 	m.startTime = time.Now()
 	m.bytesTotal = m.plan.TotalUploadBytes()
 	m.byteCounter = new(atomic.Int64)
+	m.uploadSucceeded = false
+	m.doneCursor = 0
+	m.publishInFlight = false
+	m.published = false
+	m.publishMsg = ""
+	m.publishErr = nil
 
 	ctx, cancel := context.WithCancel(context.Background())
 	m.uploadCancel = cancel
@@ -685,15 +968,22 @@ func (m Model) updateUploading(msg tea.Msg) (Model, tea.Cmd) {
 		return m, waitForUploadProgress(m.uploadCh)
 	case uploadFinishedMsg:
 		m.stage = stageDone
+		m.doneCursor = 0
+		m.publishInFlight = false
+		m.publishMsg = ""
+		m.publishErr = nil
 		elapsed := time.Since(m.startTime)
 		if len(m.progressErrors) > 0 {
 			m.err = fmt.Errorf("%d errors during upload", len(m.progressErrors))
 			m.resultMsg = fmt.Sprintf("Upload completed with %d errors in %s", len(m.progressErrors), elapsed.Round(time.Second))
+			m.uploadSucceeded = false
 		} else if m.progressCurrent < m.progressTotal {
 			m.resultMsg = "Upload cancelled"
+			m.uploadSucceeded = false
 		} else {
 			m.resultMsg = fmt.Sprintf("Upload complete! %d files synced in %s",
 				m.plan.TotalActions(), elapsed.Round(time.Second))
+			m.uploadSucceeded = true
 		}
 		return m, nil
 	}
@@ -762,10 +1052,58 @@ func (m Model) viewUploading() string {
 // --- Done ---
 
 func (m Model) updateDone(msg tea.Msg) (Model, tea.Cmd) {
-	if key, ok := msg.(tea.KeyPressMsg); ok {
-		switch key.String() {
-		case "enter", "q", "esc":
+	switch msg := msg.(type) {
+	case spinner.TickMsg:
+		if m.publishInFlight {
+			var cmd tea.Cmd
+			m.spinner, cmd = m.spinner.Update(msg)
+			return m, cmd
+		}
+	case publishDoneMsg:
+		m.publishInFlight = false
+		if msg.err != nil {
+			m.publishErr = msg.err
+			m.publishMsg = ""
+			return m, nil
+		}
+		if msg.result != nil && msg.result.IsError() {
+			m.publishErr = fmt.Errorf("publish %s error [%s]: %s", m.uploadType, msg.result.Code, msg.result.Error())
+			m.publishMsg = ""
+			return m, nil
+		}
+		if msg.result != nil {
+			m.publishErr = nil
+			m.published = true
+			m.doneCursor = 0
+			m.publishMsg = fmt.Sprintf("Published %s v%d (changed: %v)", m.uploadType, msg.result.Version, msg.result.Changed)
+		}
+		return m, nil
+	case tea.KeyPressMsg:
+		if m.publishInFlight {
+			return m, nil
+		}
+		canPublish := m.uploadSucceeded && !m.published
+		switch msg.String() {
+		case "q", "esc":
 			return m, func() tea.Msg { return GoBackMsg{} }
+		case "up", "k":
+			if m.uploadSucceeded {
+				m.doneCursor = 0
+				return m, nil
+			}
+		case "down", "j":
+			if canPublish {
+				m.doneCursor = 1
+				return m, nil
+			}
+		case "enter":
+			if !canPublish || m.doneCursor == 0 {
+				return m, func() tea.Msg { return GoBackMsg{} }
+			}
+			m.publishInFlight = true
+			m.publishErr = nil
+			m.publishMsg = ""
+			return m, tea.Batch(m.spinner.Tick, m.doPublish())
 		}
 	}
 	return m, nil
@@ -786,6 +1124,48 @@ func (m Model) viewDone() string {
 		}
 	}
 
+	if m.publishInFlight {
+		b.WriteString(fmt.Sprintf("\n  %s Publishing %s...\n", m.spinner.View(), m.uploadType))
+		b.WriteString("\n  Please wait...\n")
+		return b.String()
+	}
+
+	if m.publishErr != nil {
+		b.WriteString(fmt.Sprintf("\n  ✗ Publish failed: %v\n", m.publishErr))
+	}
+	if m.publishMsg != "" {
+		b.WriteString(fmt.Sprintf("\n  ✓ %s\n", m.publishMsg))
+	}
+
+	if m.uploadSucceeded {
+		backCursor := "  "
+		canPublish := !m.published
+		publishCursor := "  "
+		if m.doneCursor == 0 {
+			backCursor = "> "
+		} else if canPublish {
+			publishCursor = "> "
+		}
+		b.WriteString("\n")
+		b.WriteString(fmt.Sprintf("  %sBack\n", backCursor))
+		if canPublish {
+			b.WriteString(fmt.Sprintf("  %sPublish %s\n", publishCursor, m.uploadType))
+			b.WriteString("\n  ↑/↓: select • Enter: confirm • q: back\n")
+		} else {
+			b.WriteString("\n  Enter: back • q: back\n")
+		}
+		return b.String()
+	}
+
 	b.WriteString("\n  Press Enter to go back.\n")
 	return b.String()
+}
+
+func (m Model) doPublish() tea.Cmd {
+	team, game, uploadType := m.team, m.game, m.uploadType
+	client := m.client
+	return func() tea.Msg {
+		result, err := client.Publish(context.Background(), team, game, uploadType)
+		return publishDoneMsg{result: result, err: err}
+	}
 }
