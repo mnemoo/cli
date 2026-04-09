@@ -35,6 +35,16 @@ func configPath() (string, error) {
 		return configFile, nil
 	}
 
+	// STAKE_CONFIG_DIR is an absolute override — useful for CI, container
+	// deployments, and recording demos against the mock API without
+	// touching the user's real config under ~/Library/Application Support
+	// (macOS) / ~/.config (Linux) / %AppData% (Windows).
+	if override := os.Getenv("STAKE_CONFIG_DIR"); override != "" {
+		configDir = override
+		configFile = filepath.Join(configDir, "accounts.json")
+		return configFile, nil
+	}
+
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("config dir: %w", err)

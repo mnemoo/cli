@@ -1,4 +1,6 @@
 # Binaries
+bin/
+/mockapi
 stake
 stakecli
 stakecli-ci
@@ -16,6 +18,9 @@ coverage.out
 
 # Release artifacts
 dist/
+
+# Generated demo bundle (reproduced by cmd/demo-bundle)
+testdata/demo-bundle/
 
 # Dependency
 vendor/

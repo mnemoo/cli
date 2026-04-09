@@ -375,7 +375,7 @@ func (m Model) updateFilePicker(msg tea.Msg) (Model, tea.Cmd) {
 			m.pathFocus = 0
 			m.pathInput.Focus()
 			return m, textinput.Blink
-		case " ":
+		case "space", " ":
 			dir := m.filePicker.CurrentDirectory
 			m.dirPath = dir
 			m.pathInput.SetValue(dir)
@@ -804,42 +804,27 @@ func (m Model) buildConfirmContent() string {
 	plan := m.plan
 
 	if len(plan.ToUpload) > 0 {
-		b.WriteString(fmt.Sprintf("  Upload (%d files):\n", len(plan.ToUpload)))
-		for _, e := range plan.ToUpload {
-			b.WriteString(fmt.Sprintf("    + %s (%s)\n", e.RemoteKey, upload.FormatSize(e.Size)))
-		}
-		b.WriteString("\n")
+		b.WriteString(fmt.Sprintf("  New files:       %d (%s)\n", len(plan.ToUpload), upload.FormatSize(plan.TotalUploadBytes())))
 	}
-
 	if len(plan.ToCopy) > 0 {
-		b.WriteString(fmt.Sprintf("  Copy (%d files):\n", len(plan.ToCopy)))
-		for _, e := range plan.ToCopy {
-			b.WriteString(fmt.Sprintf("    ~ %s (%s)\n", e.RemoteKey, upload.FormatSize(e.Size)))
-		}
-		b.WriteString("\n")
+		b.WriteString(fmt.Sprintf("  Moved files:     %d\n", len(plan.ToCopy)))
 	}
-
 	if len(plan.ToDelete) > 0 {
-		b.WriteString(fmt.Sprintf("  Delete (%d files):\n", len(plan.ToDelete)))
-		for _, e := range plan.ToDelete {
-			b.WriteString(fmt.Sprintf("    - %s\n", e.RemoteKey))
-		}
-		b.WriteString("\n")
+		b.WriteString(fmt.Sprintf("  Removed files:   %d\n", len(plan.ToDelete)))
 	}
-
 	if len(plan.Unchanged) > 0 {
-		b.WriteString(fmt.Sprintf("  Unchanged: %d files\n\n", len(plan.Unchanged)))
+		b.WriteString(fmt.Sprintf("  Unchanged:       %d\n", len(plan.Unchanged)))
 	}
 
-	b.WriteString(fmt.Sprintf("  Total upload size: %s\n", upload.FormatSize(plan.TotalUploadBytes())))
-	b.WriteString(fmt.Sprintf("  Total actions: %d\n", plan.TotalActions()))
+	b.WriteString(fmt.Sprintf("\n  Total upload size: %s\n", upload.FormatSize(plan.TotalUploadBytes())))
+	b.WriteString(fmt.Sprintf("  Total actions:     %d\n", plan.TotalActions()))
 
 	return b.String()
 }
 
 func (m Model) viewConfirm() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\n  Upload plan: %s → %s/%s (%s)\n\n", m.dirPath, m.team, m.game, m.uploadType))
+	b.WriteString(fmt.Sprintf("\n  Publish %s to %s / %s\n\n", m.uploadType, m.team, m.game))
 	b.WriteString(m.viewport.View())
 	b.WriteString("\n\n  y: confirm upload • n: cancel • j/k: scroll\n")
 	return b.String()
