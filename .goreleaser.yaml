@@ -69,7 +69,7 @@ nfpms:
     ids:
       - stakecli
     vendor: mnemoo
-    homepage: https://github.com/mnemoo/stakecli
+    homepage: https://github.com/mnemoo/cli
     maintainer: mnemoo <noreply@users.noreply.github.com>
     description: |-
       stakecli — CLI and TUI for managing game assets on the Stake Engine RGS.
@@ -151,18 +151,18 @@ release:
 
     **Linux (Debian/Ubuntu):**
     ```bash
-    curl -LO https://github.com/mnemoo/stakecli/releases/download/{{ .Tag }}/stakecli_{{ .Version }}_linux_amd64.deb
+    curl -LO https://github.com/mnemoo/cli/releases/download/{{ .Tag }}/stakecli_{{ .Version }}_linux_amd64.deb
     sudo dpkg -i stakecli_{{ .Version }}_linux_amd64.deb
     ```
 
     **Linux (RHEL/Fedora):**
     ```bash
-    sudo rpm -i https://github.com/mnemoo/stakecli/releases/download/{{ .Tag }}/stakecli_{{ .Version }}_linux_amd64.rpm
+    sudo rpm -i https://github.com/mnemoo/cli/releases/download/{{ .Tag }}/stakecli_{{ .Version }}_linux_amd64.rpm
     ```
 
     **macOS (Apple Silicon):**
     ```bash
-    curl -L https://github.com/mnemoo/stakecli/releases/download/{{ .Tag }}/stakecli_{{ .Version }}_darwin_arm64.tar.gz | tar -xz
+    curl -L https://github.com/mnemoo/cli/releases/download/{{ .Tag }}/stakecli_{{ .Version }}_darwin_arm64.tar.gz | tar -xz
     sudo mv stakecli /usr/local/bin/
     # If macOS blocks the binary, clear the quarantine flag:
     sudo xattr -d com.apple.quarantine /usr/local/bin/stakecli
@@ -172,6 +172,7 @@ release:
 
     ---
 
+    Already installed? Run `stakecli update` to self-update in place.
     Verify checksums with `stakecli_{{ .Version }}_checksums.txt`.
 
 # Homebrew tap — uncomment after creating github.com/mnemoo/homebrew-tap.
@@ -183,7 +184,7 @@ release:
 #       owner: mnemoo
 #       name: homebrew-tap
 #       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-#     homepage: https://github.com/mnemoo/stakecli
+#     homepage: https://github.com/mnemoo/cli
 #     description: "CLI and TUI for managing game assets on the Stake Engine RGS."
 #     license: MIT
 #     test: |
