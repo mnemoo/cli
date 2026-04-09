@@ -1,0 +1,56 @@
+# golangci-lint v2 config.
+# Run locally: golangci-lint run
+# CI: .github/workflows/ci.yml
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - bodyclose
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      exclude-functions:
+        - (*bufio.Reader).ReadString
+        - fmt.Fprintln
+        - fmt.Fprintf
+        - fmt.Fprint
+    staticcheck:
+      checks:
+        - all
+        - -ST1000 # missing package doc
+        - -ST1020 # comment on exported
+        - -ST1021
+        - -ST1022
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - bodyclose
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/mnemoo/cli
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

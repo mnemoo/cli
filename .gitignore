@@ -1,5 +1,7 @@
 # Binaries
 stake
+stakecli
+stakecli-ci
 *.exe
 *.exe~
 *.dll
@@ -10,6 +12,10 @@ stake
 *.test
 *.out
 coverage.txt
+coverage.out
+
+# Release artifacts
+dist/
 
 # Dependency
 vendor/

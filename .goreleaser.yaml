@@ -1,0 +1,192 @@
+# GoReleaser config for stakecli.
+# Docs: https://goreleaser.com
+#
+# Local validation:
+#   goreleaser check
+#   goreleaser build --snapshot --clean --single-target
+#   goreleaser release --snapshot --clean --skip=publish
+#
+# Triggered in CI by pushing a tag matching v*.
+version: 2
+
+project_name: stakecli
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+
+builds:
+  - id: stakecli
+    main: ./cmd/stake
+    binary: stakecli
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/mnemoo/cli/internal/version.Version={{ .Version }}
+      - -X github.com/mnemoo/cli/internal/version.Commit={{ .FullCommit }}
+      - -X github.com/mnemoo/cli/internal/version.Date={{ .Date }}
+      - -X github.com/mnemoo/cli/internal/version.BuiltBy=goreleaser
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      # macOS: ARM64 only (no Intel builds by design)
+      - goos: darwin
+        goarch: amd64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    # Post-build hook: sign macOS binaries.
+    # The script is a no-op for non-darwin targets (it checks $GOOS).
+    hooks:
+      post:
+        - cmd: bash .github/scripts/sign-macos.sh "{{ .Path }}"
+
+archives:
+  - id: default
+    ids:
+      - stakecli
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE*
+      - README*
+      - CHANGELOG*
+
+nfpms:
+  - id: packages
+    package_name: stakecli
+    ids:
+      - stakecli
+    vendor: mnemoo
+    homepage: https://github.com/mnemoo/stakecli
+    maintainer: mnemoo <noreply@users.noreply.github.com>
+    description: |-
+      stakecli — CLI and TUI for managing game assets on the Stake Engine RGS.
+      Upload math and frontend bundles, run compliance checks, and publish
+      releases from your terminal or CI pipeline.
+    license: MIT # TODO: confirm license choice before first tagged release
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    section: utils
+    priority: optional
+    contents:
+      - src: LICENSE
+        dst: /usr/share/doc/stakecli/LICENSE
+        file_info:
+          mode: 0644
+        type: doc
+      - src: README.md
+        dst: /usr/share/doc/stakecli/README.md
+        file_info:
+          mode: 0644
+        type: doc
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+    rpm:
+      group: Applications/System
+      summary: CLI and TUI for the Stake Engine RGS.
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "^style:"
+      - "Merge pull request"
+      - "Merge branch"
+  groups:
+    - title: "Features"
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: "Bug fixes"
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: "Performance"
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: "Refactors"
+      regexp: '^.*?refactor(\(.+\))??!?:.+$'
+      order: 3
+    - title: "Other"
+      order: 999
+
+release:
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## stakecli {{ .Tag }}
+
+    Built from commit {{ .ShortCommit }} on {{ .Date }}.
+  footer: |
+    ---
+
+    ### Install
+
+    **Linux (Debian/Ubuntu):**
+    ```bash
+    curl -LO https://github.com/mnemoo/stakecli/releases/download/{{ .Tag }}/stakecli_{{ .Version }}_linux_amd64.deb
+    sudo dpkg -i stakecli_{{ .Version }}_linux_amd64.deb
+    ```
+
+    **Linux (RHEL/Fedora):**
+    ```bash
+    sudo rpm -i https://github.com/mnemoo/stakecli/releases/download/{{ .Tag }}/stakecli_{{ .Version }}_linux_amd64.rpm
+    ```
+
+    **macOS (Apple Silicon):**
+    ```bash
+    curl -L https://github.com/mnemoo/stakecli/releases/download/{{ .Tag }}/stakecli_{{ .Version }}_darwin_arm64.tar.gz | tar -xz
+    sudo mv stakecli /usr/local/bin/
+    # If macOS blocks the binary, clear the quarantine flag:
+    sudo xattr -d com.apple.quarantine /usr/local/bin/stakecli
+    ```
+
+    **Windows:** download the matching `.zip` archive from the assets below and extract `stakecli.exe`.
+
+    ---
+
+    Verify checksums with `stakecli_{{ .Version }}_checksums.txt`.
+
+# Homebrew tap — uncomment after creating github.com/mnemoo/homebrew-tap.
+# brews:
+#   - name: stakecli
+#     ids:
+#       - default
+#     repository:
+#       owner: mnemoo
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+#     homepage: https://github.com/mnemoo/stakecli
+#     description: "CLI and TUI for managing game assets on the Stake Engine RGS."
+#     license: MIT
+#     test: |
+#       system "#{bin}/stakecli version"
+#     install: |
+#       bin.install "stakecli"
