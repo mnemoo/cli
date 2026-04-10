@@ -75,7 +75,7 @@ nfpms:
       stakecli — CLI and TUI for managing game assets on the Stake Engine RGS.
       Upload math and frontend bundles, run compliance checks, and publish
       releases from your terminal or CI pipeline.
-    license: MIT # TODO: confirm license choice before first tagged release
+    license: MIT
     formats:
       - deb
       - rpm
