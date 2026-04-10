@@ -88,12 +88,12 @@ type Model struct {
 	progress   progress.Model
 	viewport   viewport.Model
 
-	localFiles []upload.LocalFile
-	warnings   []upload.SafetyWarning
-	plan       *upload.UploadPlan
-	compliance upload.ComplianceResult
-	compliancePage int
-	doneCursor     int
+	localFiles      []upload.LocalFile
+	warnings        []upload.SafetyWarning
+	plan            *upload.UploadPlan
+	compliance      upload.ComplianceResult
+	compliancePage  int
+	doneCursor      int
 	uploadSucceeded bool
 	publishInFlight bool
 	published       bool
@@ -101,10 +101,10 @@ type Model struct {
 	publishErr      error
 
 	// Upload state
-	uploadCh       <-chan upload.ProgressEvent
-	uploadCancel   context.CancelFunc
-	uploadGate     *upload.PauseGate
-	byteCounter    *atomic.Int64
+	uploadCh        <-chan upload.ProgressEvent
+	uploadCancel    context.CancelFunc
+	uploadGate      *upload.PauseGate
+	byteCounter     *atomic.Int64
 	progressCurrent int
 	progressTotal   int
 	progressFile    string

@@ -1,9 +1,9 @@
 # Binaries
 bin/
 /mockapi
-stake
-stakecli
-stakecli-ci
+/stake
+/stakecli
+/stakecli-ci
 *.exe
 *.exe~
 *.dll

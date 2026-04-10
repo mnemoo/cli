@@ -122,13 +122,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 var (
-	titleStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FFFFFF"))
-	accentStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFA500"))
-	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Italic(true)
-	greenStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#34D399"))
-	cyanStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#38BDF8"))
-	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#EF4444"))
-	hintStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
+	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FFFFFF"))
+	accentStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFA500"))
+	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Italic(true)
+	greenStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#34D399"))
+	cyanStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#38BDF8"))
+	errorStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#EF4444"))
+	hintStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
 )
 
 func (m Model) View() string {

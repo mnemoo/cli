@@ -18,11 +18,11 @@ type ComplianceCheck struct {
 }
 
 type ComplianceResult struct {
-	Checks         []ComplianceCheck
-	ModeSummaries  []ComplianceModeSummary
-	HasError       bool
-	WarningsCount  int
-	FailuresCount  int
+	Checks        []ComplianceCheck
+	ModeSummaries []ComplianceModeSummary
+	HasError      bool
+	WarningsCount int
+	FailuresCount int
 }
 
 type ComplianceModeSummary struct {

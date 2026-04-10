@@ -31,9 +31,9 @@ var skipFiles = map[string]bool{
 }
 
 type LocalFile struct {
-	RelPath  string // relative to scanned root, e.g. "math/index.json"
-	AbsPath  string
-	Size     int64
+	RelPath    string // relative to scanned root, e.g. "math/index.json"
+	AbsPath    string
+	Size       int64
 	ETagResult *ETagResult
 }
 

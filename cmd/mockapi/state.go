@@ -41,10 +41,10 @@ type multipartSession struct {
 }
 
 type presignedTarget struct {
-	Team      string
-	Game      string
-	Path      string // e.g. "/math/weights.csv"
-	Key       string
+	Team       string
+	Game       string
+	Path       string // e.g. "/math/weights.csv"
+	Key        string
 	ExpectETag string // if set, the scratch entry will use this etag after successful PUT
 	// Multipart context (nil for single-part).
 	Multipart *multipartContext

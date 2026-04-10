@@ -265,4 +265,3 @@ var gameVersions = map[string][]api.GameVersionHistoryItem{
 	"neon-labs/plasma-drift":   {},
 	"neon-labs/ghost-protocol": {},
 }
-
