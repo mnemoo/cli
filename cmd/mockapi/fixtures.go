@@ -61,7 +61,7 @@ var teams = []api.TeamListItem{
 var gamesByTeam = map[string][]api.TeamGameCard{
 	"neon-labs": {
 		{
-			Name: "Gods of Neon", Slug: "gods-of-neon", Rating: ptrFloat(4.73), Published: true,
+			Name: "Gods of Neon", Slug: "gods-of-neon", Rating: ptrFloat(4.73), Published: true, OnlinePlayers: 1_247,
 			Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"},
 			Stats: &api.TeamStats{
 				Day:   &api.StatPeriod{Count: 28_431, Turnover: 16_240_000_000, Profit: 947_100_000},
@@ -69,7 +69,7 @@ var gamesByTeam = map[string][]api.TeamGameCard{
 			},
 		},
 		{
-			Name: "Midnight Vault", Slug: "midnight-vault", Rating: ptrFloat(4.58), Published: true,
+			Name: "Midnight Vault", Slug: "midnight-vault", Rating: ptrFloat(4.58), Published: true, OnlinePlayers: 832,
 			Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"},
 			Stats: &api.TeamStats{
 				Day:   &api.StatPeriod{Count: 21_102, Turnover: 12_748_000_000, Profit: 704_300_000},
@@ -77,7 +77,7 @@ var gamesByTeam = map[string][]api.TeamGameCard{
 			},
 		},
 		{
-			Name: "Thunder Empress", Slug: "thunder-empress", Rating: ptrFloat(4.91), Published: true,
+			Name: "Thunder Empress", Slug: "thunder-empress", Rating: ptrFloat(4.91), Published: true, OnlinePlayers: 2_118,
 			Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"},
 			Stats: &api.TeamStats{
 				Day:   &api.StatPeriod{Count: 34_882, Turnover: 20_429_000_000, Profit: 1_297_400_000},
@@ -85,7 +85,7 @@ var gamesByTeam = map[string][]api.TeamGameCard{
 			},
 		},
 		{
-			Name: "Sakura Fortune X", Slug: "sakura-fortune-x", Rating: ptrFloat(4.44), Published: true,
+			Name: "Sakura Fortune X", Slug: "sakura-fortune-x", Rating: ptrFloat(4.44), Published: true, OnlinePlayers: 641,
 			Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"},
 			Stats: &api.TeamStats{
 				Day:   &api.StatPeriod{Count: 17_412, Turnover: 10_607_000_000, Profit: 627_500_000},
@@ -93,7 +93,7 @@ var gamesByTeam = map[string][]api.TeamGameCard{
 			},
 		},
 		{
-			Name: "Nebula Rush", Slug: "nebula-rush", Rating: ptrFloat(4.32), Published: true,
+			Name: "Nebula Rush", Slug: "nebula-rush", Rating: ptrFloat(4.32), Published: true, OnlinePlayers: 389,
 			Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"},
 			Stats: &api.TeamStats{
 				Day:   &api.StatPeriod{Count: 14_228, Turnover: 8_070_000_000, Profit: 470_700_000},
@@ -117,21 +117,21 @@ var gamesByTeam = map[string][]api.TeamGameCard{
 		},
 	},
 	"aurora-studios": {
-		{Name: "Arctic Reels", Slug: "arctic-reels", Rating: ptrFloat(4.55), Published: true, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 19_412, Turnover: 10_412_000_000, Profit: 627_300_000}, Month: &api.StatPeriod{Count: 582_110, Turnover: 312_110_000_000, Profit: 18_821_000_000}}},
-		{Name: "Polar Heist", Slug: "polar-heist", Rating: ptrFloat(4.27), Published: true, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 14_882, Turnover: 8_141_000_000, Profit: 480_700_000}, Month: &api.StatPeriod{Count: 444_220, Turnover: 244_220_000_000, Profit: 14_422_000_000}}},
-		{Name: "Aurora Rising", Slug: "aurora-rising", Rating: ptrFloat(4.71), Published: true, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 22_001, Turnover: 13_441_000_000, Profit: 740_200_000}, Month: &api.StatPeriod{Count: 659_881, Turnover: 402_881_000_000, Profit: 22_210_000_000}}},
-		{Name: "Frostline", Slug: "frostline", Rating: ptrFloat(3.98), Published: true, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 9_112, Turnover: 5_888_000_000, Profit: 264_200_000}, Month: &api.StatPeriod{Count: 272_881, Turnover: 172_881_000_000, Profit: 8_135_000_000}}},
+		{Name: "Arctic Reels", Slug: "arctic-reels", Rating: ptrFloat(4.55), Published: true, OnlinePlayers: 712, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 19_412, Turnover: 10_412_000_000, Profit: 627_300_000}, Month: &api.StatPeriod{Count: 582_110, Turnover: 312_110_000_000, Profit: 18_821_000_000}}},
+		{Name: "Polar Heist", Slug: "polar-heist", Rating: ptrFloat(4.27), Published: true, OnlinePlayers: 445, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 14_882, Turnover: 8_141_000_000, Profit: 480_700_000}, Month: &api.StatPeriod{Count: 444_220, Turnover: 244_220_000_000, Profit: 14_422_000_000}}},
+		{Name: "Aurora Rising", Slug: "aurora-rising", Rating: ptrFloat(4.71), Published: true, OnlinePlayers: 923, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 22_001, Turnover: 13_441_000_000, Profit: 740_200_000}, Month: &api.StatPeriod{Count: 659_881, Turnover: 402_881_000_000, Profit: 22_210_000_000}}},
+		{Name: "Frostline", Slug: "frostline", Rating: ptrFloat(3.98), Published: true, OnlinePlayers: 218, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 9_112, Turnover: 5_888_000_000, Profit: 264_200_000}, Month: &api.StatPeriod{Count: 272_881, Turnover: 172_881_000_000, Profit: 8_135_000_000}}},
 		{Name: "Borealis Bonus", Slug: "borealis-bonus", Rating: nil, Published: false, Approval: &api.GameApproval{Open: true, Locked: false, Column: "draft"}},
 	},
 	"crimson-games": {
-		{Name: "Inferno Empress", Slug: "inferno-empress", Rating: ptrFloat(4.33), Published: true, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 11_888, Turnover: 8_563_000_000, Profit: 370_900_000}, Month: &api.StatPeriod{Count: 356_881, Turnover: 256_881_000_000, Profit: 11_128_000_000}}},
-		{Name: "Crimson Tide", Slug: "crimson-tide", Rating: ptrFloat(4.01), Published: true, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 8_220, Turnover: 6_627_000_000, Profit: 262_700_000}, Month: &api.StatPeriod{Count: 246_812, Turnover: 198_812_000_000, Profit: 7_882_000_000}}},
-		{Name: "Dragon Coin Deluxe", Slug: "dragon-coin-deluxe", Rating: ptrFloat(4.19), Published: true, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 13_441, Turnover: 9_432_000_000, Profit: 437_600_000}, Month: &api.StatPeriod{Count: 402_990, Turnover: 282_990_000_000, Profit: 13_124_000_000}}},
+		{Name: "Inferno Empress", Slug: "inferno-empress", Rating: ptrFloat(4.33), Published: true, OnlinePlayers: 334, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 11_888, Turnover: 8_563_000_000, Profit: 370_900_000}, Month: &api.StatPeriod{Count: 356_881, Turnover: 256_881_000_000, Profit: 11_128_000_000}}},
+		{Name: "Crimson Tide", Slug: "crimson-tide", Rating: ptrFloat(4.01), Published: true, OnlinePlayers: 187, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 8_220, Turnover: 6_627_000_000, Profit: 262_700_000}, Month: &api.StatPeriod{Count: 246_812, Turnover: 198_812_000_000, Profit: 7_882_000_000}}},
+		{Name: "Dragon Coin Deluxe", Slug: "dragon-coin-deluxe", Rating: ptrFloat(4.19), Published: true, OnlinePlayers: 421, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 13_441, Turnover: 9_432_000_000, Profit: 437_600_000}, Month: &api.StatPeriod{Count: 402_990, Turnover: 282_990_000_000, Profit: 13_124_000_000}}},
 		{Name: "Lantern Nights", Slug: "lantern-nights", Rating: nil, Published: false, Approval: &api.GameApproval{Open: true, Locked: false, Column: "in_review"}},
 	},
 	"indie-collab": {
-		{Name: "Forest Path", Slug: "forest-path", Rating: ptrFloat(3.82), Published: true, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 4_112, Turnover: 2_806_000_000, Profit: 147_400_000}, Month: &api.StatPeriod{Count: 124_112, Turnover: 84_112_000_000, Profit: 4_422_000_000}}},
-		{Name: "Pixel Fortune", Slug: "pixel-fortune", Rating: ptrFloat(3.56), Published: true, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 2_881, Turnover: 1_879_000_000, Profit: 97_800_000}, Month: &api.StatPeriod{Count: 86_442, Turnover: 56_442_000_000, Profit: 2_944_000_000}}},
+		{Name: "Forest Path", Slug: "forest-path", Rating: ptrFloat(3.82), Published: true, OnlinePlayers: 92, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 4_112, Turnover: 2_806_000_000, Profit: 147_400_000}, Month: &api.StatPeriod{Count: 124_112, Turnover: 84_112_000_000, Profit: 4_422_000_000}}},
+		{Name: "Pixel Fortune", Slug: "pixel-fortune", Rating: ptrFloat(3.56), Published: true, OnlinePlayers: 54, Approval: &api.GameApproval{Open: false, Locked: true, Column: "approved"}, Stats: &api.TeamStats{Day: &api.StatPeriod{Count: 2_881, Turnover: 1_879_000_000, Profit: 97_800_000}, Month: &api.StatPeriod{Count: 86_442, Turnover: 56_442_000_000, Profit: 2_944_000_000}}},
 		{Name: "Sketch Lab", Slug: "sketch-lab", Rating: nil, Published: false, Approval: &api.GameApproval{Open: true, Locked: false, Column: "draft"}},
 	},
 }
@@ -265,3 +265,4 @@ var gameVersions = map[string][]api.GameVersionHistoryItem{
 	"neon-labs/plasma-drift":   {},
 	"neon-labs/ghost-protocol": {},
 }
+

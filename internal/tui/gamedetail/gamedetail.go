@@ -548,6 +548,7 @@ func (m Model) viewInfo(b *strings.Builder) {
 	b.WriteString(fmt.Sprintf("  Name:     %s\n", d.Name))
 	b.WriteString(fmt.Sprintf("  Slug:     %s\n", d.Slug))
 	b.WriteString(fmt.Sprintf("  Rating:   %s\n", ratingStars(d.Rating)))
+	b.WriteString(fmt.Sprintf("  Online:   %d\n", d.OnlinePlayers))
 
 	if d.Approval != nil {
 		status := "closed"

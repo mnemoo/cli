@@ -62,11 +62,12 @@ func (s *Server) handleTeamGameDetail(w http.ResponseWriter, r *http.Request) {
 	for _, g := range games {
 		if g.Slug == slug {
 			detail := api.TeamGameDetail{
-				Name:     g.Name,
-				Slug:     g.Slug,
-				Image:    g.Image,
-				Rating:   g.Rating,
-				Approval: g.Approval,
+				Name:          g.Name,
+				Slug:          g.Slug,
+				Image:         g.Image,
+				Rating:        g.Rating,
+				Approval:      g.Approval,
+				OnlinePlayers: g.OnlinePlayers,
 			}
 			writeJSON(w, http.StatusOK, detail)
 			return

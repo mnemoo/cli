@@ -164,10 +164,10 @@ func (m Model) View() string {
 				periodLabel = "Day Profit"
 			}
 
-			header := fmt.Sprintf("  %-3s %-24s %-8s %-14s %s\n",
-				"#", "Name", "Rating", periodLabel, "Turnover")
+			header := fmt.Sprintf("  %-3s %-24s %-8s %-8s %-14s %s\n",
+				"#", "Name", "Rating", "Online", periodLabel, "Turnover")
 			b.WriteString(header)
-			b.WriteString("  " + strings.Repeat("─", 67) + "\n")
+			b.WriteString("  " + strings.Repeat("─", 78) + "\n")
 
 			for i, g := range m.games {
 				cursor := " "
@@ -195,8 +195,8 @@ func (m Model) View() string {
 					name = name[:22] + "…"
 				}
 
-				b.WriteString(fmt.Sprintf("  %s%-3d %-24s %-8s %-14s %s\n",
-					cursor, i+1, name, rating, profit, turnover))
+				b.WriteString(fmt.Sprintf("  %s%-3d %-24s %-8s %-8d %-14s %s\n",
+					cursor, i+1, name, rating, g.OnlinePlayers, profit, turnover))
 			}
 		}
 

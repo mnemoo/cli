@@ -20,13 +20,14 @@ type StatPeriod struct {
 }
 
 type TeamGameCard struct {
-	Name      string        `json:"name"`
-	Slug      string        `json:"slug"`
-	Rating    *float64      `json:"rating"`
-	Image     *string       `json:"image"`
-	Published bool          `json:"published"`
-	Approval  *GameApproval `json:"approval"`
-	Stats     *TeamStats    `json:"stats"`
+	Name          string        `json:"name"`
+	Slug          string        `json:"slug"`
+	Rating        *float64      `json:"rating"`
+	Image         *string       `json:"image"`
+	Published     bool          `json:"published"`
+	Approval      *GameApproval `json:"approval"`
+	Stats         *TeamStats    `json:"stats"`
+	OnlinePlayers int           `json:"onlinePlayers"`
 }
 
 type GameApproval struct {
@@ -36,11 +37,12 @@ type GameApproval struct {
 }
 
 type TeamGameDetail struct {
-	Name     string        `json:"name"`
-	Slug     string        `json:"slug"`
-	Image    *string       `json:"image"`
-	Rating   *float64      `json:"rating"`
-	Approval *GameApproval `json:"approval"`
+	Name          string        `json:"name"`
+	Slug          string        `json:"slug"`
+	Image         *string       `json:"image"`
+	Rating        *float64      `json:"rating"`
+	Approval      *GameApproval `json:"approval"`
+	OnlinePlayers int           `json:"onlinePlayers"`
 }
 
 type VersionApproved struct {
