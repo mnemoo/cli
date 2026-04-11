@@ -24,20 +24,20 @@ or CI pipeline.
 ### Linux (Debian/Ubuntu)
 
 ```bash
-curl -LO https://github.com/mnemoo/cli/releases/latest/download/stakecli_linux_amd64.deb
-sudo dpkg -i stakecli_linux_amd64.deb
+curl -LO https://github.com/mnemoo/cli/releases/download/v1.0.0/stakecli_1.0.0_linux_amd64.deb
+sudo dpkg -i stakecli_1.0.0_linux_amd64.deb
 ```
 
 ### Linux (RHEL/Fedora)
 
 ```bash
-sudo rpm -i https://github.com/mnemoo/cli/releases/latest/download/stakecli_linux_amd64.rpm
+sudo rpm -i https://github.com/mnemoo/cli/releases/download/v1.0.0/stakecli_1.0.0_linux_amd64.rpm
 ```
 
 ### macOS (Apple Silicon)
 
 ```bash
-curl -L https://github.com/mnemoo/cli/releases/latest/download/stakecli_darwin_arm64.tar.gz | tar -xz
+curl -L https://github.com/mnemoo/cli/releases/download/v1.0.0/stakecli_1.0.0_darwin_arm64.tar.gz | tar -xz
 sudo mv stakecli /usr/local/bin/
 # If Gatekeeper blocks the binary, clear the quarantine flag:
 sudo xattr -d com.apple.quarantine /usr/local/bin/stakecli

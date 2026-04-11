@@ -55,3 +55,41 @@ jobs:
             dist/*_checksums.txt
           if-no-files-found: warn
           retention-days: 30
+
+  bump-readme:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Bump install URLs in README
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          # Rewrite /releases/download/vX.Y.Z/ -> new tag
+          sed -i -E "s|releases/download/v[0-9]+\.[0-9]+\.[0-9]+/|releases/download/${TAG}/|g" README.md
+          # Rewrite stakecli_X.Y.Z_ -> new version
+          sed -i -E "s|stakecli_[0-9]+\.[0-9]+\.[0-9]+_|stakecli_${VERSION}_|g" README.md
+
+      - name: Commit and push
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet README.md; then
+            echo "README already up to date for ${TAG}"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "chore(release): bump install URLs to ${TAG}"
+          git push origin main
