@@ -185,7 +185,7 @@ func writeWeightsCSV(path string, m modePlan) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	bw := bufio.NewWriterSize(f, 1<<16)
 	rng := rand.New(rand.NewSource(m.seed))
@@ -245,7 +245,7 @@ func writeFakeEvents(path, mode string, targetSize int, seed int64) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	bw := bufio.NewWriterSize(f, 1<<16)
 
@@ -387,7 +387,7 @@ func writeJSONFile(path string, v any) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	return enc.Encode(v)
@@ -398,7 +398,7 @@ func writeFilledFile(path, header string, totalSize int, filler string, seed int
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	bw := bufio.NewWriterSize(f, 1<<16)
 	if _, err := bw.WriteString(header); err != nil {
@@ -431,7 +431,7 @@ func writeRandomFile(path string, size int, seed int64) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	bw := bufio.NewWriterSize(f, 1<<16)
 	rng := rand.New(rand.NewSource(seed))

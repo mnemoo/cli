@@ -149,7 +149,7 @@ func (m Model) View() string {
 		b.WriteString("  " + hintStyle.Render("Press Enter to login • Ctrl+C to quit") + "\n")
 
 	case stateLoading:
-		b.WriteString(fmt.Sprintf("  %s Validating session...\n", m.spinner.View()))
+		fmt.Fprintf(&b, "  %s Validating session...\n", m.spinner.View())
 
 	case stateError:
 		b.WriteString("  " + errorStyle.Render(fmt.Sprintf("Error: %s", m.err.Error())) + "\n\n")

@@ -99,7 +99,7 @@ func (c *Client) getJSON(ctx context.Context, url string, dest any) error {
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return fmt.Errorf("session expired (HTTP %d)", resp.StatusCode)
@@ -139,7 +139,7 @@ func (c *Client) doPostJSON(ctx context.Context, hc *http.Client, url string, bo
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return fmt.Errorf("session expired (HTTP %d)", resp.StatusCode)
@@ -180,7 +180,7 @@ func (c *Client) putBytesWithCounter(ctx context.Context, url string, data []byt
 	if err != nil {
 		return fmt.Errorf("S3 upload failed (%s, %d bytes): %w", contentType, len(data), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))

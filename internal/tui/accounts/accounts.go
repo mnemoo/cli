@@ -215,7 +215,7 @@ func (m Model) View() string {
 				if acc.ID == m.activeID {
 					active = " (active)"
 				}
-				b.WriteString(fmt.Sprintf("  %s%s <%s>%s\n", cursor, acc.Name, acc.Email, active))
+				fmt.Fprintf(&b, "  %s%s <%s>%s\n", cursor, acc.Name, acc.Email, active)
 			}
 		}
 
@@ -223,16 +223,16 @@ func (m Model) View() string {
 
 		if m.state == stateConfirmDelete && len(m.accounts) > 0 {
 			acc := m.accounts[m.cursor]
-			b.WriteString(fmt.Sprintf("  Delete %s? (y/n)\n", acc.Name))
+			fmt.Fprintf(&b, "  Delete %s? (y/n)\n", acc.Name)
 		} else {
 			b.WriteString("  Enter: switch • a: add • d: delete • Esc: back\n")
 		}
 
 	case stateSwitching:
-		b.WriteString(fmt.Sprintf("  %s Switching account...\n", m.spinner.View()))
+		fmt.Fprintf(&b, "  %s Switching account...\n", m.spinner.View())
 
 	case stateError:
-		b.WriteString(fmt.Sprintf("  Error: %s\n\n", m.err.Error()))
+		fmt.Fprintf(&b, "  Error: %s\n\n", m.err.Error())
 		b.WriteString("  Press Enter to continue\n")
 	}
 

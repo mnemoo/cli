@@ -163,7 +163,7 @@ func parseSize(s string) (int64, error) {
 		return 0, fmt.Errorf("invalid number %q", numStr)
 	}
 
-	var mult float64 = 1
+	var mult float64
 	switch strings.ToLower(suffix) {
 	case "", "b":
 		mult = 1

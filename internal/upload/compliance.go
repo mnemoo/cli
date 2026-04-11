@@ -168,7 +168,7 @@ func validateLUT(result *ComplianceResult, path, prefix string, modeCost float64
 		result.HasError = true
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	lineNum := 0

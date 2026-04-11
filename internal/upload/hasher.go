@@ -30,7 +30,7 @@ func ComputeETag(path string, fileSize int64) (*ETagResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if fileSize <= ChunkSize {
 		return computeSingleETag(f)

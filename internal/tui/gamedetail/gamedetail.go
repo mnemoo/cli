@@ -104,10 +104,7 @@ func (f versionFilter) label() string {
 
 const versionsPerPage = 10
 
-var (
-	activeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
-	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-)
+var activeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
 
 type Model struct {
 	client    *api.Client
@@ -436,11 +433,11 @@ func (m Model) maxPage(filtered []api.GameVersionHistoryItem) int {
 func (m Model) View() string {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("\n  Game — %s\n\n", m.gameName))
+	fmt.Fprintf(&b, "\n  Game — %s\n\n", m.gameName)
 
 	switch m.state {
 	case stateLoading:
-		b.WriteString(fmt.Sprintf("  %s Loading...\n", m.spinner.View()))
+		fmt.Fprintf(&b, "  %s Loading...\n", m.spinner.View())
 
 	case stateReady:
 		b.WriteString(m.viewTabs())
@@ -460,7 +457,7 @@ func (m Model) View() string {
 		b.WriteString("\n  Tab: next tab • u: upload • p: publish • Esc: back\n")
 
 	case stateError:
-		b.WriteString(fmt.Sprintf("  Error: %s\n\n", m.err.Error()))
+		fmt.Fprintf(&b, "  Error: %s\n\n", m.err.Error())
 		b.WriteString("  r: retry • Esc: back\n")
 	}
 
@@ -477,13 +474,13 @@ func (m Model) viewPublishOverlay(b *strings.Builder) {
 			if i == m.pubCursor {
 				cursor = "> "
 			}
-			b.WriteString(fmt.Sprintf("  %s%s\n", cursor, opt))
+			fmt.Fprintf(b, "  %s%s\n", cursor, opt)
 		}
 		b.WriteString("\n  j/k: navigate • Enter: publish • Esc: cancel\n")
 	case publishRunning:
-		b.WriteString(fmt.Sprintf("\n  %s Publishing %s...\n", m.spinner.View(), m.pubType))
+		fmt.Fprintf(b, "\n  %s Publishing %s...\n", m.spinner.View(), m.pubType)
 	case publishPolling:
-		b.WriteString(fmt.Sprintf("\n  %s %s\n", m.spinner.View(), m.pubMsg))
+		fmt.Fprintf(b, "\n  %s %s\n", m.spinner.View(), m.pubMsg)
 	case publishDone:
 		icon := "✓"
 		if m.pubErr != nil {
@@ -495,13 +492,13 @@ func (m Model) viewPublishOverlay(b *strings.Builder) {
 		}
 		lines := strings.Split(m.pubMsg, "\n")
 		first := wrapLine(lines[0], maxW)
-		b.WriteString(fmt.Sprintf("\n  %s %s\n", icon, first[0]))
+		fmt.Fprintf(b, "\n  %s %s\n", icon, first[0])
 		for _, w := range first[1:] {
-			b.WriteString(fmt.Sprintf("    %s\n", w))
+			fmt.Fprintf(b, "    %s\n", w)
 		}
 		for _, line := range lines[1:] {
 			for _, wrapped := range wrapLine(line, maxW) {
-				b.WriteString(fmt.Sprintf("    %s\n", wrapped))
+				fmt.Fprintf(b, "    %s\n", wrapped)
 			}
 		}
 		b.WriteString("  Press any key to dismiss.\n")
@@ -545,10 +542,10 @@ func (m Model) viewTabs() string {
 
 func (m Model) viewInfo(b *strings.Builder) {
 	d := m.detail
-	b.WriteString(fmt.Sprintf("  Name:     %s\n", d.Name))
-	b.WriteString(fmt.Sprintf("  Slug:     %s\n", d.Slug))
-	b.WriteString(fmt.Sprintf("  Rating:   %s\n", ratingStars(d.Rating)))
-	b.WriteString(fmt.Sprintf("  Online:   %d\n", d.OnlinePlayers))
+	fmt.Fprintf(b, "  Name:     %s\n", d.Name)
+	fmt.Fprintf(b, "  Slug:     %s\n", d.Slug)
+	fmt.Fprintf(b, "  Rating:   %s\n", ratingStars(d.Rating))
+	fmt.Fprintf(b, "  Online:   %d\n", d.OnlinePlayers)
 
 	if d.Approval != nil {
 		status := "closed"
@@ -558,15 +555,15 @@ func (m Model) viewInfo(b *strings.Builder) {
 		if d.Approval.Locked {
 			status += ", locked"
 		}
-		b.WriteString(fmt.Sprintf("  Approval: %s (%s)\n", d.Approval.Column, status))
+		fmt.Fprintf(b, "  Approval: %s (%s)\n", d.Approval.Column, status)
 	} else {
 		b.WriteString("  Approval: —\n")
 	}
 
 	mathVer, frontVer := m.activeVersions()
 	b.WriteString("\n  Active Versions\n")
-	b.WriteString(fmt.Sprintf("  Math:  %s\n", activeStyle.Render(mathVer)))
-	b.WriteString(fmt.Sprintf("  Front: %s\n", activeStyle.Render(frontVer)))
+	fmt.Fprintf(b, "  Math:  %s\n", activeStyle.Render(mathVer))
+	fmt.Fprintf(b, "  Front: %s\n", activeStyle.Render(frontVer))
 }
 
 func (m Model) activeVersions() (string, string) {
@@ -602,8 +599,8 @@ func (m Model) viewStats(b *strings.Builder) {
 		return
 	}
 
-	b.WriteString(fmt.Sprintf("  %-14s %12s %14s %14s %8s %8s %8s\n",
-		"Mode", "Bets", "Turnover", "Profit", "RTP", "Eff.RTP", "Nrm.RTP"))
+	fmt.Fprintf(b, "  %-14s %12s %14s %14s %8s %8s %8s\n",
+		"Mode", "Bets", "Turnover", "Profit", "RTP", "Eff.RTP", "Nrm.RTP")
 	b.WriteString("  " + strings.Repeat("─", 82) + "\n")
 
 	for _, s := range m.stats.Stats {
@@ -614,20 +611,20 @@ func (m Model) viewStats(b *strings.Builder) {
 		bets := formatNumber(s.Count)
 		turnover := formatMoney(s.Turnover)
 		profit := formatMoney(s.Profit)
-		rtp := fmt.Sprintf("%.2f%%", s.Rtp*100)
-		effRtp := fmt.Sprintf("%.2f%%", s.EffectiveRtp*100)
-		nrmRtp := fmt.Sprintf("%.2f%%", s.NormalizedRtp*100)
+		rtp := fmt.Sprintf("%.2f%%", s.RTP*100)
+		effRTP := fmt.Sprintf("%.2f%%", s.EffectiveRTP*100)
+		nrmRTP := fmt.Sprintf("%.2f%%", s.NormalizedRTP*100)
 
-		b.WriteString(fmt.Sprintf("  %-14s %12s %14s %14s %8s %8s %8s\n",
-			mode, bets, turnover, profit, rtp, effRtp, nrmRtp))
+		fmt.Fprintf(b, "  %-14s %12s %14s %14s %8s %8s %8s\n",
+			mode, bets, turnover, profit, rtp, effRTP, nrmRTP)
 	}
 }
 
 func (m Model) viewVersions(b *strings.Builder) {
 	filtered := m.filteredVersions()
 
-	b.WriteString(fmt.Sprintf("  Filter: %s   ", m.filterTabs()))
-	b.WriteString(fmt.Sprintf("(%d versions)\n\n", len(filtered)))
+	fmt.Fprintf(b, "  Filter: %s   ", m.filterTabs())
+	fmt.Fprintf(b, "(%d versions)\n\n", len(filtered))
 
 	if len(filtered) == 0 {
 		b.WriteString("  No versions found.\n")
@@ -642,7 +639,7 @@ func (m Model) viewVersions(b *strings.Builder) {
 	}
 	page := filtered[start:end]
 
-	b.WriteString(fmt.Sprintf("  %-8s %-8s %-22s %s\n", "Type", "Ver", "Created", "Operators"))
+	fmt.Fprintf(b, "  %-8s %-8s %-22s %s\n", "Type", "Ver", "Created", "Operators")
 	b.WriteString("  " + strings.Repeat("─", 70) + "\n")
 
 	for _, v := range page {
@@ -658,7 +655,7 @@ func (m Model) viewVersions(b *strings.Builder) {
 		}
 	}
 
-	b.WriteString(fmt.Sprintf("\n  Page %d/%d  •  ←/→: page  •  f: filter\n", m.verPage+1, maxPage+1))
+	fmt.Fprintf(b, "\n  Page %d/%d  •  ←/→: page  •  f: filter\n", m.verPage+1, maxPage+1)
 }
 
 func (m Model) filterTabs() string {

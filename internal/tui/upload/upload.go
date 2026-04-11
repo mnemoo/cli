@@ -272,14 +272,14 @@ func (m Model) updateTypeSelect(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) viewTypeSelect() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\n  Upload to %s / %s\n\n", m.team, m.game))
+	fmt.Fprintf(&b, "\n  Upload to %s / %s\n\n", m.team, m.game)
 	b.WriteString("  Select upload type:\n\n")
 	for i, opt := range m.typeOpts {
 		cursor := "  "
 		if i == m.typeCursor {
 			cursor = "> "
 		}
-		b.WriteString(fmt.Sprintf("  %s%s\n", cursor, opt))
+		fmt.Fprintf(&b, "  %s%s\n", cursor, opt)
 	}
 	b.WriteString("\n  j/k: navigate • Enter: select • q: back\n")
 	return b.String()
@@ -345,13 +345,13 @@ func (m Model) updatePathInput(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) viewPathInput() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\n  Upload %s to %s / %s\n\n", m.uploadType, m.team, m.game))
+	fmt.Fprintf(&b, "\n  Upload %s to %s / %s\n\n", m.uploadType, m.team, m.game)
 	b.WriteString("  Enter path to directory:\n\n")
 	b.WriteString(m.pathInput.View())
 	b.WriteString("\n")
 
 	if m.pathErr != "" {
-		b.WriteString(fmt.Sprintf("\n  ✗ %s\n", m.pathErr))
+		fmt.Fprintf(&b, "\n  ✗ %s\n", m.pathErr)
 	}
 
 	b.WriteString("\n")
@@ -392,8 +392,8 @@ func (m Model) updateFilePicker(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) viewFilePicker() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\n  Upload %s to %s / %s\n", m.uploadType, m.team, m.game))
-	b.WriteString(fmt.Sprintf("  Current: %s\n\n", m.filePicker.CurrentDirectory))
+	fmt.Fprintf(&b, "\n  Upload %s to %s / %s\n", m.uploadType, m.team, m.game)
+	fmt.Fprintf(&b, "  Current: %s\n\n", m.filePicker.CurrentDirectory)
 	b.WriteString(m.filePicker.View())
 	b.WriteString("\n  Enter/l: open dir • h/←/Esc: parent dir • Space: select this dir • q: back\n")
 	return b.String()
@@ -486,7 +486,7 @@ func (m Model) viewSafetyWarn() string {
 		if w.Level == "error" {
 			prefix = "  ✗ "
 		}
-		b.WriteString(fmt.Sprintf("  %s%s\n", prefix, w.Message))
+		fmt.Fprintf(&b, "  %s%s\n", prefix, w.Message)
 	}
 
 	if upload.HasErrors(m.warnings) {
@@ -554,12 +554,12 @@ func (m Model) updateCompliance(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) viewCompliance() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\n  Math Compliance Check — %s/%s\n\n", m.team, m.game))
+	fmt.Fprintf(&b, "\n  Math Compliance Check — %s/%s\n\n", m.team, m.game)
 	failCount := m.compliance.FailuresCount
 	warnCount := m.compliance.WarningsCount
 
-	b.WriteString(fmt.Sprintf("  Modes: %d • Failures: %d • Warnings: %d\n\n",
-		len(m.compliance.ModeSummaries), failCount, warnCount))
+	fmt.Fprintf(&b, "  Modes: %d • Failures: %d • Warnings: %d\n\n",
+		len(m.compliance.ModeSummaries), failCount, warnCount)
 
 	rows := m.compliance.ModeSummaries
 	start, end, page, totalPages := compliancePageRange(len(rows), m.compliancePage)
@@ -585,7 +585,7 @@ func (m Model) viewCompliance() string {
 	}
 
 	if totalPages > 1 {
-		b.WriteString(fmt.Sprintf("\n  Page %d/%d • j/k: next/prev page\n", page+1, totalPages))
+		fmt.Fprintf(&b, "\n  Page %d/%d • j/k: next/prev page\n", page+1, totalPages)
 	}
 
 	b.WriteString("\n")
@@ -804,27 +804,27 @@ func (m Model) buildConfirmContent() string {
 	plan := m.plan
 
 	if len(plan.ToUpload) > 0 {
-		b.WriteString(fmt.Sprintf("  New files:       %d (%s)\n", len(plan.ToUpload), upload.FormatSize(plan.TotalUploadBytes())))
+		fmt.Fprintf(&b, "  New files:       %d (%s)\n", len(plan.ToUpload), upload.FormatSize(plan.TotalUploadBytes()))
 	}
 	if len(plan.ToCopy) > 0 {
-		b.WriteString(fmt.Sprintf("  Moved files:     %d\n", len(plan.ToCopy)))
+		fmt.Fprintf(&b, "  Moved files:     %d\n", len(plan.ToCopy))
 	}
 	if len(plan.ToDelete) > 0 {
-		b.WriteString(fmt.Sprintf("  Removed files:   %d\n", len(plan.ToDelete)))
+		fmt.Fprintf(&b, "  Removed files:   %d\n", len(plan.ToDelete))
 	}
 	if len(plan.Unchanged) > 0 {
-		b.WriteString(fmt.Sprintf("  Unchanged:       %d\n", len(plan.Unchanged)))
+		fmt.Fprintf(&b, "  Unchanged:       %d\n", len(plan.Unchanged))
 	}
 
-	b.WriteString(fmt.Sprintf("\n  Total upload size: %s\n", upload.FormatSize(plan.TotalUploadBytes())))
-	b.WriteString(fmt.Sprintf("  Total actions:     %d\n", plan.TotalActions()))
+	fmt.Fprintf(&b, "\n  Total upload size: %s\n", upload.FormatSize(plan.TotalUploadBytes()))
+	fmt.Fprintf(&b, "  Total actions:     %d\n", plan.TotalActions())
 
 	return b.String()
 }
 
 func (m Model) viewConfirm() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\n  Publish %s to %s / %s\n\n", m.uploadType, m.team, m.game))
+	fmt.Fprintf(&b, "\n  Publish %s to %s / %s\n\n", m.uploadType, m.team, m.game)
 	b.WriteString(m.viewport.View())
 	b.WriteString("\n\n  y: confirm upload • n: cancel • j/k: scroll\n")
 	return b.String()
@@ -977,23 +977,23 @@ func (m Model) updateUploading(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) viewUploading() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\n  Uploading to %s/%s (%s)\n\n", m.team, m.game, m.uploadType))
+	fmt.Fprintf(&b, "\n  Uploading to %s/%s (%s)\n\n", m.team, m.game, m.uploadType)
 
 	b.WriteString("  ")
 	b.WriteString(m.progress.View())
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %d / %d files\n\n", m.progressCurrent, m.progressTotal))
+	fmt.Fprintf(&b, "  %d / %d files\n\n", m.progressCurrent, m.progressTotal)
 
 	if len(m.activeFiles) > 0 {
 		sorted := make([]activeFile, len(m.activeFiles))
 		copy(sorted, m.activeFiles)
 		sort.Slice(sorted, func(i, j int) bool { return sorted[i].name < sorted[j].name })
 		for _, af := range sorted {
-			b.WriteString(fmt.Sprintf("  %s ↑ %s (%s)\n", m.spinner.View(), af.name, upload.FormatSize(af.size)))
+			fmt.Fprintf(&b, "  %s ↑ %s (%s)\n", m.spinner.View(), af.name, upload.FormatSize(af.size))
 		}
 		b.WriteString("\n")
 	} else if m.progressFile != "" {
-		b.WriteString(fmt.Sprintf("  %s %s\n\n", m.spinner.View(), m.progressFile))
+		fmt.Fprintf(&b, "  %s %s\n\n", m.spinner.View(), m.progressFile)
 	}
 
 	var bytesUploaded int64
@@ -1004,29 +1004,29 @@ func (m Model) viewUploading() string {
 	elapsed := time.Since(m.startTime)
 	if bytesUploaded > 0 && elapsed.Seconds() > 0.5 {
 		speed := float64(bytesUploaded) / elapsed.Seconds()
-		b.WriteString(fmt.Sprintf("  Speed: %s/s", upload.FormatSize(int64(speed))))
+		fmt.Fprintf(&b, "  Speed: %s/s", upload.FormatSize(int64(speed)))
 		remaining := m.bytesTotal - bytesUploaded
 		if remaining > 0 && speed > 0 {
 			eta := time.Duration(float64(remaining)/speed) * time.Second
-			b.WriteString(fmt.Sprintf(" • ETA: %s", eta.Round(time.Second)))
+			fmt.Fprintf(&b, " • ETA: %s", eta.Round(time.Second))
 		}
 		b.WriteString("\n")
 	}
-	b.WriteString(fmt.Sprintf("  Transferred: %s / %s\n",
-		upload.FormatSize(bytesUploaded), upload.FormatSize(m.bytesTotal)))
+	fmt.Fprintf(&b, "  Transferred: %s / %s\n",
+		upload.FormatSize(bytesUploaded), upload.FormatSize(m.bytesTotal))
 
 	if m.uploadGate != nil && m.uploadGate.IsPaused() {
 		b.WriteString("\n  ⏸  PAUSED\n")
 	}
 
 	if len(m.progressErrors) > 0 {
-		b.WriteString(fmt.Sprintf("\n  Errors (%d):\n", len(m.progressErrors)))
+		fmt.Fprintf(&b, "\n  Errors (%d):\n", len(m.progressErrors))
 		show := m.progressErrors
 		if len(show) > 3 {
 			show = show[len(show)-3:]
 		}
 		for _, e := range show {
-			b.WriteString(fmt.Sprintf("    ✗ %s\n", e))
+			fmt.Fprintf(&b, "    ✗ %s\n", e)
 		}
 	}
 
@@ -1100,26 +1100,26 @@ func (m Model) viewDone() string {
 		icon = "✗"
 	}
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\n  %s %s\n", icon, m.resultMsg))
+	fmt.Fprintf(&b, "\n  %s %s\n", icon, m.resultMsg)
 
 	if len(m.progressErrors) > 0 {
-		b.WriteString(fmt.Sprintf("\n  Errors (%d):\n", len(m.progressErrors)))
+		fmt.Fprintf(&b, "\n  Errors (%d):\n", len(m.progressErrors))
 		for _, e := range m.progressErrors {
-			b.WriteString(fmt.Sprintf("    ✗ %s\n", e))
+			fmt.Fprintf(&b, "    ✗ %s\n", e)
 		}
 	}
 
 	if m.publishInFlight {
-		b.WriteString(fmt.Sprintf("\n  %s Publishing %s...\n", m.spinner.View(), m.uploadType))
+		fmt.Fprintf(&b, "\n  %s Publishing %s...\n", m.spinner.View(), m.uploadType)
 		b.WriteString("\n  Please wait...\n")
 		return b.String()
 	}
 
 	if m.publishErr != nil {
-		b.WriteString(fmt.Sprintf("\n  ✗ Publish failed: %v\n", m.publishErr))
+		fmt.Fprintf(&b, "\n  ✗ Publish failed: %v\n", m.publishErr)
 	}
 	if m.publishMsg != "" {
-		b.WriteString(fmt.Sprintf("\n  ✓ %s\n", m.publishMsg))
+		fmt.Fprintf(&b, "\n  ✓ %s\n", m.publishMsg)
 	}
 
 	if m.uploadSucceeded {
@@ -1132,9 +1132,9 @@ func (m Model) viewDone() string {
 			publishCursor = "> "
 		}
 		b.WriteString("\n")
-		b.WriteString(fmt.Sprintf("  %sBack\n", backCursor))
+		fmt.Fprintf(&b, "  %sBack\n", backCursor)
 		if canPublish {
-			b.WriteString(fmt.Sprintf("  %sPublish %s\n", publishCursor, m.uploadType))
+			fmt.Fprintf(&b, "  %sPublish %s\n", publishCursor, m.uploadType)
 			b.WriteString("\n  ↑/↓: select • Enter: confirm • q: back\n")
 		} else {
 			b.WriteString("\n  Enter: back • q: back\n")

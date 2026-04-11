@@ -149,11 +149,11 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 func (m Model) View() string {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("\n  Games — %s\n\n", m.teamName))
+	fmt.Fprintf(&b, "\n  Games — %s\n\n", m.teamName)
 
 	switch m.state {
 	case stateLoading:
-		b.WriteString(fmt.Sprintf("  %s Loading games...\n", m.spinner.View()))
+		fmt.Fprintf(&b, "  %s Loading games...\n", m.spinner.View())
 
 	case stateList:
 		if len(m.games) == 0 {
@@ -195,8 +195,8 @@ func (m Model) View() string {
 					name = name[:22] + "…"
 				}
 
-				b.WriteString(fmt.Sprintf("  %s%-3d %-24s %-8s %-8d %-14s %s\n",
-					cursor, i+1, name, rating, g.OnlinePlayers, profit, turnover))
+				fmt.Fprintf(&b, "  %s%-3d %-24s %-8s %-8d %-14s %s\n",
+					cursor, i+1, name, rating, g.OnlinePlayers, profit, turnover)
 			}
 		}
 
@@ -204,10 +204,10 @@ func (m Model) View() string {
 		if m.showDay {
 			hint = "Month"
 		}
-		b.WriteString(fmt.Sprintf("\n  Enter: details • Tab: switch to %s • Esc: back\n", hint))
+		fmt.Fprintf(&b, "\n  Enter: details • Tab: switch to %s • Esc: back\n", hint)
 
 	case stateError:
-		b.WriteString(fmt.Sprintf("  Error: %s\n\n", m.err.Error()))
+		fmt.Fprintf(&b, "  Error: %s\n\n", m.err.Error())
 		b.WriteString("  r: retry • Esc: back\n")
 	}
 

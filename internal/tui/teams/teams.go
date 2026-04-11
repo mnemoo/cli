@@ -169,7 +169,7 @@ func (m Model) View() string {
 
 	switch m.state {
 	case stateLoading:
-		b.WriteString(fmt.Sprintf("  %s Loading teams...\n", m.spinner.View()))
+		fmt.Fprintf(&b, "  %s Loading teams...\n", m.spinner.View())
 
 	case stateList:
 		if len(m.teams) == 0 {
@@ -186,15 +186,15 @@ func (m Model) View() string {
 					standings = formatBalance(bal.Position)
 				}
 
-				b.WriteString(fmt.Sprintf("  %s%-20s  Standings: %s\n",
-					cursor, t.Name, standings))
+				fmt.Fprintf(&b, "  %s%-20s  Standings: %s\n",
+					cursor, t.Name, standings)
 			}
 		}
 
 		b.WriteString("\n  Enter: select • Esc: back\n")
 
 	case stateError:
-		b.WriteString(fmt.Sprintf("  Error: %s\n\n", m.err.Error()))
+		fmt.Fprintf(&b, "  Error: %s\n\n", m.err.Error())
 		b.WriteString("  r: retry • Esc: back\n")
 	}
 
