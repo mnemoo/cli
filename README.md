@@ -45,7 +45,21 @@ sudo xattr -d com.apple.quarantine /usr/local/bin/stakecli
 
 ### Windows
 
-Download the matching `.zip` archive from the
+One-line install in PowerShell (downloads the latest release, installs
+to `%LOCALAPPDATA%\stakecli` and adds it to your user `PATH`):
+
+```powershell
+irm https://raw.githubusercontent.com/mnemoo/cli/main/install.ps1 | iex
+```
+
+Or, to install a specific version:
+
+```powershell
+$env:STAKECLI_VERSION = "v1.0.0"
+irm https://raw.githubusercontent.com/mnemoo/cli/main/install.ps1 | iex
+```
+
+Prefer a manual install? Download the matching `.zip` archive from the
 [latest release](https://github.com/mnemoo/cli/releases/latest) and
 extract `stakecli.exe` somewhere on your `PATH`.
 
