@@ -48,6 +48,7 @@ type Model struct {
 	err      error
 	width    int
 	height   int
+	selector bool
 }
 
 func New() Model {
@@ -55,6 +56,12 @@ func New() Model {
 	return Model{
 		spinner: sp,
 	}
+}
+
+func NewSelector() Model {
+	m := New()
+	m.selector = true
+	return m
 }
 
 func (m Model) Init() tea.Cmd {
@@ -159,11 +166,19 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			}
 			acc := m.accounts[m.cursor]
 			if acc.ID == m.activeID {
+				if m.selector {
+					return m, func() tea.Msg {
+						return SwitchedMsg{User: &auth.User{ID: acc.ID, Name: acc.Name, Email: acc.Email, Image: acc.Image}}
+					}
+				}
 				return m, nil
 			}
 			m.state = stateSwitching
 			return m, tea.Batch(m.spinner.Tick, doSwitch(acc.ID))
 		case "d":
+			if m.selector {
+				return m, nil
+			}
 			if len(m.accounts) > 0 {
 				m.state = stateConfirmDelete
 			}
@@ -225,7 +240,11 @@ func (m Model) View() string {
 			acc := m.accounts[m.cursor]
 			fmt.Fprintf(&b, "  Delete %s? (y/n)\n", acc.Name)
 		} else {
-			b.WriteString("  Enter: switch • a: add • d: delete • Esc: back\n")
+			if m.selector {
+				b.WriteString("  Enter: select • a: add • Esc: cancel\n")
+			} else {
+				b.WriteString("  Enter: switch • a: add • d: delete • Esc: back\n")
+			}
 		}
 
 	case stateSwitching:

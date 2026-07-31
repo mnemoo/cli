@@ -1,41 +1,120 @@
 package upload
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
+const (
+	ComplianceSchemaVersion = "1.1"
+	complianceMethod        = "moptimizer_compliance_rs_and_optimization_guideline_v1"
+	complianceScope         = "final_integer_weighted_lut"
+)
+
+type ComplianceStatus string
+
+const (
+	CompliancePass         ComplianceStatus = "pass"
+	ComplianceWarn         ComplianceStatus = "warn"
+	ComplianceFail         ComplianceStatus = "fail"
+	ComplianceInfo         ComplianceStatus = "info"
+	ComplianceNotEvaluated ComplianceStatus = "not_evaluated"
+)
+
 type ComplianceCheck struct {
-	Name    string // e.g. "index.json exists", "Mode 'base': LUT valid"
-	Status  string // "pass", "warn", "fail", "info"
-	Details string
+	Code    string           `json:"code"`
+	Name    string           `json:"name"`
+	Scope   string           `json:"scope"`
+	Mode    string           `json:"mode,omitempty"`
+	Tier    string           `json:"tier,omitempty"`
+	Status  ComplianceStatus `json:"status"`
+	Details string           `json:"details"`
+	Hard    bool             `json:"hard"`
+	Actual  *float64         `json:"actual,omitempty"`
+	Minimum *float64         `json:"minimum,omitempty"`
+	Maximum *float64         `json:"maximum,omitempty"`
+	Unit    string           `json:"unit,omitempty"`
+}
+
+type ComplianceOptions struct {
+	BaseMode string `json:"base_mode,omitempty"`
 }
 
 type ComplianceResult struct {
-	Checks        []ComplianceCheck
-	ModeSummaries []ComplianceModeSummary
-	HasError      bool
-	WarningsCount int
-	FailuresCount int
+	SchemaVersion  string                  `json:"schema_version"`
+	Method         string                  `json:"method"`
+	Scope          string                  `json:"scope"`
+	Policy         CompliancePolicy        `json:"policy"`
+	Status         ComplianceStatus        `json:"status"`
+	Complete       bool                    `json:"complete"`
+	Checks         []ComplianceCheck       `json:"checks"`
+	ModeSummaries  []ComplianceModeSummary `json:"mode_summaries"`
+	GameSummary    ComplianceGameSummary   `json:"game_summary"`
+	TierResults    []ComplianceTierResult  `json:"tier_results"`
+	HasError       bool                    `json:"has_error"`
+	WarningsCount  int                     `json:"warnings_count"`
+	FailuresCount  int                     `json:"failures_count"`
+	ExcludedInputs []string                `json:"excluded_inputs"`
 }
 
 type ComplianceModeSummary struct {
-	Name          string
-	Cost          float64
-	HasStats      bool
-	RTP           float64
-	Volatility    float64
-	VolatilityTag string
-	HitRate       float64
-	MaxWin        float64
-	MaxWinHitRate string
-	SimCount      int
+	Name                 string           `json:"name"`
+	Kind                 string           `json:"kind"`
+	Cost                 float64          `json:"cost"`
+	IsBase               bool             `json:"is_base"`
+	HasStats             bool             `json:"has_stats"`
+	Status               ComplianceStatus `json:"status"`
+	RTP                  float64          `json:"rtp"`
+	RTPDeviationPP       float64          `json:"rtp_deviation_pp"`
+	Volatility           float64          `json:"volatility"`
+	VolatilityTag        string           `json:"volatility_tag"`
+	HitRate              float64          `json:"hit_rate"`
+	MaxWin               float64          `json:"max_win"`
+	NormalizedMaxWin     float64          `json:"normalized_max_win"`
+	MaxWinProbability    float64          `json:"max_win_probability"`
+	MaxWinHitRate        string           `json:"max_win_hit_rate"`
+	TailProbability5000  float64          `json:"tail_probability_5000"`
+	TailProbability10000 float64          `json:"tail_probability_10000"`
+	CVaR001              float64          `json:"cvar_0_1_percent"`
+	ETL40                float64          `json:"etl_40"`
+	ETL10000             float64          `json:"etl_10000"`
+	ETLSum               float64          `json:"etl_sum"`
+	SimCount             int              `json:"sim_count"`
+	TotalWeight          uint64           `json:"total_weight"`
+}
+
+type ComplianceGameSummary struct {
+	BaseMode                string   `json:"base_mode,omitempty"`
+	MeanRTP                 float64  `json:"mean_rtp"`
+	CrossModeMaxDeviationPP float64  `json:"cross_mode_max_deviation_pp"`
+	MaxCostMultiplier       float64  `json:"max_cost_multiplier"`
+	MaxPayoutMultiplier     float64  `json:"max_payout_multiplier"`
+	MaxPayoutBaseBet        float64  `json:"max_payout_base_bet"`
+	BaseVolatility          float64  `json:"base_volatility"`
+	TailProbability5000     float64  `json:"tail_probability_5000"`
+	TailProbability10000    float64  `json:"tail_probability_10000"`
+	CVaR001                 float64  `json:"cvar_0_1_percent"`
+	ETL40                   float64  `json:"etl_40"`
+	ETL10000                float64  `json:"etl_10000"`
+	ETLSum                  float64  `json:"etl_sum"`
+	EligibleTiers           []string `json:"eligible_tiers"`
+	DirectBonusModes        int      `json:"direct_bonus_modes"`
+	MysteryModes            int      `json:"mystery_modes"`
+	AmbiguousBuyModes       int      `json:"ambiguous_buy_modes"`
+}
+
+type ComplianceTierResult struct {
+	Tier                 string           `json:"tier"`
+	Status               ComplianceStatus `json:"status"`
+	LUTMathStatus        ComplianceStatus `json:"lut_math_status"`
+	Complete             bool             `json:"complete"`
+	Eligible             bool             `json:"eligible"`
+	MaxCompliantBetLevel float64          `json:"max_compliant_bet_level"`
+	CheckCodes           []string         `json:"check_codes"`
 }
 
 type mathIndex struct {
@@ -49,355 +128,420 @@ type mathIndexMode struct {
 	Weights string  `json:"weights"`
 }
 
-type lutStats struct {
-	Entries         int
-	TotalWeight     uint64
-	NonZeroWeight   uint64
-	MaxPayout       uint64
-	MaxPayoutWeight uint64
-	RTP             float64
-	Volatility      float64
+type analyzedMode struct {
+	definition mathIndexMode
+	stats      *lutStats
 }
 
-const (
-	rtpMin          = 90.0
-	rtpMax          = 98.0
-	rtpVariationMax = 0.5
-	minSimulations  = 100_000
-)
-
 func RunMathCompliance(dirPath string) ComplianceResult {
-	var result ComplianceResult
+	return RunMathComplianceWithOptions(dirPath, ComplianceOptions{})
+}
 
-	indexPath := filepath.Join(dirPath, "index.json")
-	data, err := os.ReadFile(indexPath)
+func RunMathComplianceWithOptions(dirPath string, options ComplianceOptions) ComplianceResult {
+	result := ComplianceResult{
+		SchemaVersion: ComplianceSchemaVersion,
+		Method:        complianceMethod,
+		Scope:         complianceScope,
+		Policy:        CurrentCompliancePolicy(),
+		Status:        CompliancePass,
+		Complete:      true,
+		Checks:        make([]ComplianceCheck, 0),
+		ModeSummaries: make([]ComplianceModeSummary, 0),
+		TierResults:   make([]ComplianceTierResult, 0),
+		ExcludedInputs: []string{
+			"Maximum configured platform bet level",
+			"Currency context for Max Exposure and Max Bet Cost",
+			"Bonus-trigger and shape/event metadata for Base and Ante modes",
+			"Mystery 50/30/10/10 event split where a Mystery mode exists",
+			"Bonus-buy 100% hit rate and minimum-return preferences",
+		},
+	}
+
+	root, err := filepath.Abs(dirPath)
 	if err != nil {
-		result.addFail("index.json", "File not found in "+dirPath)
-		result.HasError = true
+		result.addFail("bundle.path", "Bundle path", "bundle", "", "", true, fmt.Sprintf("Cannot resolve bundle path: %v", err))
+		result.finalize()
 		return result
 	}
-	result.addPass("index.json", "Found")
+
+	indexPath, err := resolveBundleFile(root, "index.json")
+	if err != nil {
+		result.addFail("bundle.index.path", "index.json", "bundle", "", "", true, err.Error())
+		result.finalize()
+		return result
+	}
+	data, err := os.ReadFile(indexPath)
+	if err != nil {
+		result.addFail("bundle.index.exists", "index.json", "bundle", "", "", true, "File not found in "+root)
+		result.finalize()
+		return result
+	}
+	result.addPass("bundle.index.exists", "index.json", "bundle", "", "", true, "Found")
 
 	var idx mathIndex
 	if err := json.Unmarshal(data, &idx); err != nil {
-		result.addFail("index.json parse", fmt.Sprintf("Invalid JSON: %v", err))
-		result.HasError = true
+		result.addFail("bundle.index.parse", "index.json parse", "bundle", "", "", true, fmt.Sprintf("Invalid JSON: %v", err))
+		result.finalize()
 		return result
 	}
-
 	if len(idx.Modes) == 0 {
-		result.addFail("index.json modes", "No bet modes defined (modes array is empty)")
-		result.HasError = true
+		result.addFail("bundle.modes.present", "Bet modes", "bundle", "", "", true, "No bet modes defined")
+		result.finalize()
 		return result
 	}
-	result.addPass("Bet modes", fmt.Sprintf("%d mode(s) defined", len(idx.Modes)))
+	result.addPass("bundle.modes.present", "Bet modes", "bundle", "", "", true, fmt.Sprintf("%d mode(s) defined", len(idx.Modes)))
 
-	seen := make(map[string]bool)
-	modeRTPs := make(map[string]float64)
+	baseMode, foundBase := selectBaseMode(idx.Modes, options.BaseMode)
+	if options.BaseMode != "" && !foundBase {
+		result.addWarn("bundle.base_mode", "Base mode", "bundle", "", "", false, fmt.Sprintf("Display hint %q is not present; using automatic selection", options.BaseMode))
+		baseMode, _ = selectBaseMode(idx.Modes, "")
+	} else if foundBase {
+		result.addInfo("bundle.base_mode", "Base mode", "bundle", baseMode, "", false, fmt.Sprintf("Using %q as base mode", baseMode))
+	}
 
+	seen := make(map[string]struct{}, len(idx.Modes))
+	analyzed := make([]analyzedMode, 0, len(idx.Modes))
 	for _, mode := range idx.Modes {
 		prefix := fmt.Sprintf("Mode %q", mode.Name)
-
-		if mode.Name == "" {
-			result.addFail(prefix, "Mode name is empty")
-			result.HasError = true
+		if strings.TrimSpace(mode.Name) == "" {
+			result.addFail("mode.name", "Mode name", "mode", mode.Name, "", true, "Mode name is empty")
+			analyzed = append(analyzed, analyzedMode{definition: mode})
 			continue
 		}
-		if seen[mode.Name] {
-			result.addFail(prefix, "Duplicate mode name")
-			result.HasError = true
+		if _, exists := seen[mode.Name]; exists {
+			result.addFail("mode.name.unique", prefix, "mode", mode.Name, "", true, "Duplicate mode name")
+			analyzed = append(analyzed, analyzedMode{definition: mode})
 			continue
 		}
-		seen[mode.Name] = true
+		seen[mode.Name] = struct{}{}
 
-		if mode.Cost <= 0 {
-			result.addFail(prefix, fmt.Sprintf("Invalid cost: %v (must be > 0)", mode.Cost))
-			result.HasError = true
+		if mode.Cost <= 0 || math.IsNaN(mode.Cost) || math.IsInf(mode.Cost, 0) {
+			result.addFail("mode.cost.positive", prefix+" cost", "mode", mode.Name, "", true, fmt.Sprintf("Invalid cost: %v", mode.Cost))
 		} else {
-			result.addPass(prefix, fmt.Sprintf("cost=%.2f", mode.Cost))
+			result.addPassMetric("mode.cost.positive", prefix+" cost", "mode", mode.Name, "", true, mode.Cost, floatPointer(math.SmallestNonzeroFloat64), nil, "base_bet_x", fmt.Sprintf("cost=%.4f", mode.Cost))
 		}
 
-		stats := validateModeFiles(&result, dirPath, mode)
+		stats := validateModeFiles(&result, root, mode)
 		if stats != nil {
-			modeRTPs[mode.Name] = stats.RTP
+			validateHardModeLimits(&result, mode, stats)
 		}
-		result.ModeSummaries = append(result.ModeSummaries, buildModeSummary(mode, stats))
+		analyzed = append(analyzed, analyzedMode{definition: mode, stats: stats})
 	}
 
-	validateCrossMode(&result, modeRTPs)
-
+	validateCrossMode(&result, analyzed)
+	result.ModeSummaries = buildModeSummaries(analyzed, baseMode, result.Checks)
+	result.GameSummary = buildGameSummary(analyzed, baseMode)
+	evaluateTiers(&result, analyzed)
+	result.finalize()
 	return result
 }
 
-func validateModeFiles(result *ComplianceResult, dirPath string, mode mathIndexMode) *lutStats {
+func validateModeFiles(result *ComplianceResult, root string, mode mathIndexMode) *lutStats {
 	prefix := fmt.Sprintf("Mode %q", mode.Name)
-
 	if mode.Events == "" {
-		result.addFail(prefix+" events", "Events filename is empty")
-		result.HasError = true
+		result.addFail("mode.events.reference", prefix+" events", "mode", mode.Name, "", true, "Events filename is empty")
+	} else if eventsPath, err := resolveBundleFile(root, mode.Events); err != nil {
+		result.addFail("mode.events.path", prefix+" events", "mode", mode.Name, "", true, err.Error())
+	} else if info, err := os.Stat(eventsPath); err != nil {
+		result.addFail("mode.events.exists", prefix+" events", "mode", mode.Name, "", true, fmt.Sprintf("%s not found", mode.Events))
+	} else if !info.Mode().IsRegular() {
+		result.addFail("mode.events.regular_file", prefix+" events", "mode", mode.Name, "", true, fmt.Sprintf("%s is not a regular file", mode.Events))
 	} else {
-		eventsPath := filepath.Join(dirPath, mode.Events)
-		if info, err := os.Stat(eventsPath); err != nil {
-			result.addFail(prefix+" events", fmt.Sprintf("%s not found", mode.Events))
-			result.HasError = true
-		} else {
-			result.addPass(prefix+" events", fmt.Sprintf("%s (%s)", mode.Events, FormatSize(info.Size())))
-		}
+		result.addPass("mode.events.exists", prefix+" events", "mode", mode.Name, "", true, fmt.Sprintf("%s (%s)", mode.Events, FormatSize(info.Size())))
 	}
 
 	if mode.Weights == "" {
-		result.addFail(prefix+" weights", "Weights filename is empty")
-		result.HasError = true
+		result.addFail("mode.weights.reference", prefix+" weights", "mode", mode.Name, "", true, "Weights filename is empty")
 		return nil
 	}
-
-	weightsPath := filepath.Join(dirPath, mode.Weights)
-	if _, err := os.Stat(weightsPath); err != nil {
-		result.addFail(prefix+" weights", fmt.Sprintf("%s not found", mode.Weights))
-		result.HasError = true
+	weightsPath, err := resolveBundleFile(root, mode.Weights)
+	if err != nil {
+		result.addFail("mode.weights.path", prefix+" weights", "mode", mode.Name, "", true, err.Error())
 		return nil
 	}
-
-	return validateLUT(result, weightsPath, prefix, mode.Cost)
+	info, err := os.Stat(weightsPath)
+	if err != nil {
+		result.addFail("mode.weights.exists", prefix+" weights", "mode", mode.Name, "", true, fmt.Sprintf("%s not found", mode.Weights))
+		return nil
+	}
+	if !info.Mode().IsRegular() {
+		result.addFail("mode.weights.regular_file", prefix+" weights", "mode", mode.Name, "", true, fmt.Sprintf("%s is not a regular file", mode.Weights))
+		return nil
+	}
+	return validateLUT(result, weightsPath, prefix, mode)
 }
 
-func validateLUT(result *ComplianceResult, path, prefix string, modeCost float64) *lutStats {
-	f, err := os.Open(path)
-	if err != nil {
-		result.addFail(prefix+" LUT", fmt.Sprintf("Cannot open: %v", err))
-		result.HasError = true
-		return nil
+func resolveBundleFile(root, reference string) (string, error) {
+	if strings.TrimSpace(reference) == "" {
+		return "", fmt.Errorf("empty bundle file reference")
 	}
-	defer func() { _ = f.Close() }()
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return "", fmt.Errorf("resolving bundle root: %w", err)
+	}
+	candidate := reference
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(rootAbs, candidate)
+	}
+	candidate, err = filepath.Abs(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolving %q: %w", reference, err)
+	}
+	rel, err := filepath.Rel(rootAbs, candidate)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%q escapes the math bundle root", reference)
+	}
 
-	scanner := bufio.NewScanner(f)
-	lineNum := 0
-	var totalWeight uint64
-	var nonZeroWeight uint64
-	var weightedPayout float64
-	var weightedX float64
-	var weightedX2 float64
-	var maxPayout uint64
-	var maxPayoutWeight uint64
-	expectedID := 0
+	resolvedRoot, rootErr := filepath.EvalSymlinks(rootAbs)
+	resolvedCandidate, candidateErr := filepath.EvalSymlinks(candidate)
+	if rootErr == nil && candidateErr == nil {
+		resolvedRel, relErr := filepath.Rel(resolvedRoot, resolvedCandidate)
+		if relErr != nil || resolvedRel == ".." || strings.HasPrefix(resolvedRel, ".."+string(filepath.Separator)) {
+			return "", fmt.Errorf("%q resolves outside the math bundle root", reference)
+		}
+	}
+	return candidate, nil
+}
 
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+func selectBaseMode(modes []mathIndexMode, requested string) (string, bool) {
+	if requested != "" {
+		for _, mode := range modes {
+			if mode.Name == requested {
+				return mode.Name, true
+			}
+		}
+		return "", false
+	}
+	for _, mode := range modes {
+		if strings.EqualFold(mode.Name, "base") {
+			return mode.Name, true
+		}
+	}
+	if len(modes) == 0 {
+		return "", false
+	}
+	selected := modes[0]
+	for _, mode := range modes[1:] {
+		if mode.Cost > 0 && (selected.Cost <= 0 || mode.Cost < selected.Cost) {
+			selected = mode
+		}
+	}
+	return selected.Name, selected.Name != ""
+}
+
+func buildModeSummaries(modes []analyzedMode, baseMode string, checks []ComplianceCheck) []ComplianceModeSummary {
+	meanRTP := complianceMeanRTP(modes)
+	summaries := make([]ComplianceModeSummary, 0, len(modes))
+	for _, mode := range modes {
+		summary := ComplianceModeSummary{
+			Name:   mode.definition.Name,
+			Kind:   complianceModeKind(mode.definition),
+			Cost:   mode.definition.Cost,
+			IsBase: mode.definition.Name == baseMode,
+			Status: ComplianceFail,
+		}
+		if mode.stats != nil {
+			stats := mode.stats
+			summary.HasStats = true
+			summary.RTP = stats.RTP
+			summary.RTPDeviationPP = math.Abs(complianceRTPPercent(stats.RTP) - meanRTP)
+			summary.Volatility = stats.Volatility
+			summary.VolatilityTag = classifyVolatility(stats.Volatility)
+			summary.HitRate = stats.NonZeroProbability * 100
+			summary.MaxWin = stats.MaxPayoutBaseBet
+			summary.NormalizedMaxWin = stats.MaxNormalizedPayout
+			summary.MaxWinProbability = stats.MaxWinProbability
+			summary.MaxWinHitRate = formatOdds(stats.MaxPayoutBaseBet > 0 && stats.MaxPayoutWeight > 0, stats.MaxPayoutWeight, stats.TotalWeight)
+			summary.TailProbability5000 = stats.TailProbability5000
+			summary.TailProbability10000 = stats.TailProbability10000
+			summary.CVaR001 = stats.CVaR001
+			summary.ETL40 = stats.ETL40
+			summary.ETL10000 = stats.ETL10000
+			summary.ETLSum = stats.ETL40 + stats.ETL10000
+			summary.SimCount = stats.Entries
+			summary.TotalWeight = stats.TotalWeight
+			summary.Status = CompliancePass
+		}
+		for _, check := range checks {
+			if check.Mode != mode.definition.Name {
+				continue
+			}
+			if check.Status == ComplianceFail {
+				summary.Status = ComplianceFail
+				break
+			}
+			if check.Status == ComplianceWarn || check.Status == ComplianceNotEvaluated {
+				summary.Status = ComplianceWarn
+			}
+		}
+		summaries = append(summaries, summary)
+	}
+	return summaries
+}
+
+func buildGameSummary(modes []analyzedMode, baseMode string) ComplianceGameSummary {
+	summary := ComplianceGameSummary{
+		BaseMode:      baseMode,
+		MeanRTP:       complianceMeanRTP(modes),
+		EligibleTiers: make([]string, 0),
+	}
+	for _, mode := range modes {
+		switch complianceModeKind(mode.definition) {
+		case "direct_bonus":
+			summary.DirectBonusModes++
+		case "mystery":
+			summary.MysteryModes++
+		case "ambiguous_buy":
+			summary.AmbiguousBuyModes++
+		}
+		if mode.definition.Cost > summary.MaxCostMultiplier {
+			summary.MaxCostMultiplier = mode.definition.Cost
+		}
+		if mode.stats == nil {
 			continue
 		}
-		lineNum++
-
-		parts := strings.Split(line, ",")
-		if len(parts) != 3 {
-			result.addFail(prefix+" LUT", fmt.Sprintf("Line %d: expected 3 columns, got %d", lineNum, len(parts)))
-			result.HasError = true
-			return nil
+		stats := mode.stats
+		if stats.MaxPayoutBaseBet > summary.MaxPayoutMultiplier {
+			summary.MaxPayoutMultiplier = stats.MaxPayoutBaseBet
 		}
-
-		simID, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 64)
-		if err != nil {
-			result.addFail(prefix+" LUT", fmt.Sprintf("Line %d: invalid sim_id %q", lineNum, parts[0]))
-			result.HasError = true
-			return nil
+		if stats.MaxPayoutBaseBet > summary.MaxPayoutBaseBet {
+			summary.MaxPayoutBaseBet = stats.MaxPayoutBaseBet
 		}
-
-		weight, err := strconv.ParseUint(strings.TrimSpace(parts[1]), 10, 64)
-		if err != nil {
-			result.addFail(prefix+" LUT", fmt.Sprintf("Line %d: invalid weight %q", lineNum, parts[1]))
-			result.HasError = true
-			return nil
+		if mode.definition.Name == baseMode {
+			summary.BaseVolatility = stats.Volatility
 		}
-
-		payout, err := strconv.ParseUint(strings.TrimSpace(parts[2]), 10, 64)
-		if err != nil {
-			result.addFail(prefix+" LUT", fmt.Sprintf("Line %d: invalid payout_multiplier %q (must be uint64)", lineNum, parts[2]))
-			result.HasError = true
-			return nil
-		}
-
-		if int(simID) != expectedID {
-			result.addWarn(prefix+" LUT", fmt.Sprintf("Line %d: sim_id=%d, expected %d (non-sequential)", lineNum, simID, expectedID))
-		}
-		expectedID = int(simID) + 1
-
-		if payout > 0 {
-			nonZeroWeight += weight
-		}
-		if payout > maxPayout {
-			maxPayout = payout
-			maxPayoutWeight = weight
-		} else if payout == maxPayout {
-			maxPayoutWeight += weight
-		}
-
-		totalWeight += weight
-		weightedPayout += float64(weight) * float64(payout)
-		if modeCost > 0 {
-			x := float64(payout) / 100.0 / modeCost
-			weightedX += float64(weight) * x
-			weightedX2 += float64(weight) * x * x
-		}
+		summary.TailProbability5000 = math.Max(summary.TailProbability5000, stats.TailProbability5000)
+		summary.TailProbability10000 = math.Max(summary.TailProbability10000, stats.TailProbability10000)
+		summary.CVaR001 = math.Max(summary.CVaR001, stats.CVaR001)
+		summary.ETL40 = math.Max(summary.ETL40, stats.ETL40)
+		summary.ETL10000 = math.Max(summary.ETL10000, stats.ETL10000)
+		summary.ETLSum = math.Max(summary.ETLSum, stats.ETL40+stats.ETL10000)
+		summary.CrossModeMaxDeviationPP = math.Max(
+			summary.CrossModeMaxDeviationPP,
+			math.Abs(complianceRTPPercent(stats.RTP)-summary.MeanRTP),
+		)
 	}
-
-	if err := scanner.Err(); err != nil {
-		result.addFail(prefix+" LUT", fmt.Sprintf("Read error: %v", err))
-		result.HasError = true
-		return nil
-	}
-
-	if lineNum == 0 {
-		result.addFail(prefix+" LUT", "File is empty")
-		result.HasError = true
-		return nil
-	}
-
-	result.addPass(prefix+" LUT", fmt.Sprintf("%s valid (%d entries)", filepath.Base(path), lineNum))
-
-	stats := &lutStats{
-		Entries:         lineNum,
-		TotalWeight:     totalWeight,
-		NonZeroWeight:   nonZeroWeight,
-		MaxPayout:       maxPayout,
-		MaxPayoutWeight: maxPayoutWeight,
-	}
-
-	if totalWeight > 0 && modeCost > 0 {
-		stats.RTP = (weightedPayout / float64(totalWeight) / 100.0 / modeCost) * 100.0
-		result.addInfo(prefix+" RTP", fmt.Sprintf("%.4f%%", stats.RTP))
-
-		if stats.RTP < rtpMin || stats.RTP > rtpMax {
-			result.addWarn(prefix+" RTP range", fmt.Sprintf("%.4f%% is outside required %.1f%%–%.1f%% range", stats.RTP, rtpMin, rtpMax))
-		}
-
-		meanX := weightedX / float64(totalWeight)
-		variance := (weightedX2 / float64(totalWeight)) - (meanX * meanX)
-		if variance < 0 {
-			variance = 0
-		}
-		stats.Volatility = math.Sqrt(variance)
-		result.addInfo(prefix+" volatility", fmt.Sprintf("%s (sigma=%.4f)", classifyVolatility(stats.Volatility), stats.Volatility))
-	}
-
-	maxWinX := float64(maxPayout) / 100.0
-	result.addInfo(prefix+" max win", fmt.Sprintf("%.2fx", maxWinX))
-
-	if lineNum < minSimulations {
-		result.addWarn(prefix+" simulations", fmt.Sprintf("%d entries (recommended minimum: %d)", lineNum, minSimulations))
-	} else {
-		result.addPass(prefix+" simulations", fmt.Sprintf("%d entries", lineNum))
-	}
-
-	if lineNum > 0 && totalWeight > 0 {
-		hitRate := float64(nonZeroWeight) / float64(totalWeight) * 100.0
-		result.addInfo(prefix+" hit rate", fmt.Sprintf("%.2f%% weighted non-zero hit rate", hitRate))
-
-		zeroRatio := float64(totalWeight-nonZeroWeight) / float64(totalWeight)
-		if zeroRatio > 0.90 {
-			result.addWarn(prefix+" hit rate", fmt.Sprintf("%.1f%% weighted spins are non-paying (>90%% may be rejected)", zeroRatio*100))
-		}
-	}
-
-	return stats
-}
-
-func validateCrossMode(result *ComplianceResult, modeRTPs map[string]float64) {
-	if len(modeRTPs) < 2 {
-		return
-	}
-
-	var minRTP, maxRTP float64
-	minRTP = math.MaxFloat64
-	for _, rtp := range modeRTPs {
-		if rtp < minRTP {
-			minRTP = rtp
-		}
-		if rtp > maxRTP {
-			maxRTP = rtp
-		}
-	}
-
-	variation := maxRTP - minRTP
-	if variation > rtpVariationMax {
-		result.addWarn("Cross-mode RTP", fmt.Sprintf("%.4f%% variation between modes (max allowed: %.1f%%)", variation, rtpVariationMax))
-	} else if len(modeRTPs) > 1 {
-		result.addPass("Cross-mode RTP", fmt.Sprintf("%.4f%% variation (within %.1f%% limit)", variation, rtpVariationMax))
-	}
-}
-
-func (r *ComplianceResult) addPass(name, details string) {
-	r.Checks = append(r.Checks, ComplianceCheck{Name: name, Status: "pass", Details: details})
-}
-
-func (r *ComplianceResult) addFail(name, details string) {
-	r.Checks = append(r.Checks, ComplianceCheck{Name: name, Status: "fail", Details: details})
-	r.FailuresCount++
-}
-
-func (r *ComplianceResult) addWarn(name, details string) {
-	r.Checks = append(r.Checks, ComplianceCheck{Name: name, Status: "warn", Details: details})
-	r.WarningsCount++
-}
-
-func (r *ComplianceResult) addInfo(name, details string) {
-	r.Checks = append(r.Checks, ComplianceCheck{Name: name, Status: "info", Details: details})
-}
-
-func buildModeSummary(mode mathIndexMode, stats *lutStats) ComplianceModeSummary {
-	summary := ComplianceModeSummary{
-		Name: mode.Name,
-		Cost: mode.Cost,
-	}
-
-	if stats == nil {
-		return summary
-	}
-
-	summary.HasStats = true
-	summary.RTP = stats.RTP
-	summary.Volatility = stats.Volatility
-	summary.VolatilityTag = classifyVolatility(stats.Volatility)
-	summary.SimCount = stats.Entries
-	if stats.TotalWeight > 0 {
-		summary.HitRate = float64(stats.NonZeroWeight) / float64(stats.TotalWeight) * 100.0
-	}
-	summary.MaxWin = float64(stats.MaxPayout) / 100.0
-	summary.MaxWinHitRate = formatOdds(stats.MaxPayout, stats.MaxPayoutWeight, stats.TotalWeight)
 	return summary
 }
 
-func classifyVolatility(sigma float64) string {
-	switch {
-	case sigma < 1.5:
-		return "Very Low"
-	case sigma < 3.0:
-		return "Low"
-	case sigma < 5.0:
-		return "Medium-Low"
-	case sigma < 8.0:
-		return "Medium"
-	case sigma < 12.0:
-		return "Medium-High"
-	case sigma < 18.0:
-		return "High"
-	case sigma < 30.0:
-		return "Very High"
-	default:
-		return "Extreme"
+func validateCrossMode(result *ComplianceResult, modes []analyzedMode) {
+	meanRTP := complianceMeanRTP(modes)
+	for _, mode := range modes {
+		if mode.stats == nil {
+			continue
+		}
+		modeRTP := complianceRTPPercent(mode.stats.RTP)
+		deviation := math.Abs(modeRTP - meanRTP)
+		name := fmt.Sprintf("Mode %q cross-mode RTP consistency", mode.definition.Name)
+		details := fmt.Sprintf("Rounded mode RTP %.2f%% differs from game mean %.4f%% by %.4f percentage points", modeRTP, meanRTP, deviation)
+		if deviation > crossModeDeviationMax+1e-12 {
+			result.addFailMetric("hard.cross_mode_rtp", name, "mode", mode.definition.Name, "", true, deviation, nil, floatPointer(crossModeDeviationMax), "percentage_points", details)
+		} else {
+			result.addPassMetric("hard.cross_mode_rtp", name, "mode", mode.definition.Name, "", true, deviation, nil, floatPointer(crossModeDeviationMax), "percentage_points", details)
+		}
 	}
 }
 
-func formatOdds(maxPayout, maxPayoutWeight, totalWeight uint64) string {
-	if maxPayout == 0 || maxPayoutWeight == 0 || totalWeight == 0 {
-		return "N/A"
+func complianceRTPPercent(rtpPercent float64) float64 {
+	return math.Round(rtpPercent*100) / 100
+}
+
+func complianceMeanRTP(modes []analyzedMode) float64 {
+	total := 0.0
+	count := 0
+	for _, mode := range modes {
+		if mode.stats == nil {
+			continue
+		}
+		total += complianceRTPPercent(mode.stats.RTP)
+		count++
 	}
-	odds := float64(totalWeight) / float64(maxPayoutWeight)
-	switch {
-	case odds >= 1_000_000:
-		return fmt.Sprintf("1 in %.1fM", odds/1_000_000)
-	case odds >= 1_000:
-		return fmt.Sprintf("1 in %.1fK", odds/1_000)
-	default:
-		return fmt.Sprintf("1 in %.0f", odds)
+	if count == 0 {
+		return 0
 	}
+	return total / float64(count)
+}
+
+func complianceModeKind(mode mathIndexMode) string {
+	normalized := strings.NewReplacer("-", "_", " ", "_").Replace(strings.ToLower(mode.Name))
+	if mode.Cost < 100-1e-12 {
+		return "base_or_ante"
+	}
+	if strings.Contains(normalized, "mystery") {
+		return "mystery"
+	}
+	if strings.Contains(normalized, "bonus") {
+		return "direct_bonus"
+	}
+	return "ambiguous_buy"
+}
+
+func (r *ComplianceResult) addCheck(check ComplianceCheck) {
+	r.Checks = append(r.Checks, check)
+	switch check.Status {
+	case ComplianceFail:
+		r.FailuresCount++
+		if check.Hard {
+			r.HasError = true
+		}
+	case ComplianceWarn, ComplianceNotEvaluated:
+		r.WarningsCount++
+		if check.Status == ComplianceNotEvaluated {
+			r.Complete = false
+		}
+	}
+}
+
+func (r *ComplianceResult) addPass(code, name, scope, mode, tier string, hard bool, details string) {
+	r.addCheck(ComplianceCheck{Code: code, Name: name, Scope: scope, Mode: mode, Tier: tier, Status: CompliancePass, Details: details, Hard: hard})
+}
+
+func (r *ComplianceResult) addInfo(code, name, scope, mode, tier string, hard bool, details string) {
+	r.addCheck(ComplianceCheck{Code: code, Name: name, Scope: scope, Mode: mode, Tier: tier, Status: ComplianceInfo, Details: details, Hard: hard})
+}
+
+func (r *ComplianceResult) addWarn(code, name, scope, mode, tier string, hard bool, details string) {
+	r.addCheck(ComplianceCheck{Code: code, Name: name, Scope: scope, Mode: mode, Tier: tier, Status: ComplianceWarn, Details: details, Hard: hard})
+}
+
+func (r *ComplianceResult) addFail(code, name, scope, mode, tier string, hard bool, details string) {
+	r.addCheck(ComplianceCheck{Code: code, Name: name, Scope: scope, Mode: mode, Tier: tier, Status: ComplianceFail, Details: details, Hard: hard})
+}
+
+func (r *ComplianceResult) addPassMetric(code, name, scope, mode, tier string, hard bool, actual float64, minimum, maximum *float64, unit, details string) {
+	r.addCheck(ComplianceCheck{Code: code, Name: name, Scope: scope, Mode: mode, Tier: tier, Status: CompliancePass, Details: details, Hard: hard, Actual: floatPointer(actual), Minimum: minimum, Maximum: maximum, Unit: unit})
+}
+
+func (r *ComplianceResult) addFailMetric(code, name, scope, mode, tier string, hard bool, actual float64, minimum, maximum *float64, unit, details string) {
+	r.addCheck(ComplianceCheck{Code: code, Name: name, Scope: scope, Mode: mode, Tier: tier, Status: ComplianceFail, Details: details, Hard: hard, Actual: floatPointer(actual), Minimum: minimum, Maximum: maximum, Unit: unit})
+}
+
+func (r *ComplianceResult) finalize() {
+	if r.HasError {
+		r.Status = ComplianceFail
+		return
+	}
+	if len(r.TierResults) > 0 && len(r.GameSummary.EligibleTiers) == 0 {
+		r.Status = ComplianceFail
+		return
+	}
+	if r.WarningsCount > 0 || !r.Complete {
+		r.Status = ComplianceWarn
+		return
+	}
+	r.Status = CompliancePass
+}
+
+func (r ComplianceResult) ValidateForPublish() error {
+	if r.HasError {
+		return fmt.Errorf("math compliance has blocking failures")
+	}
+	if len(r.GameSummary.EligibleTiers) == 0 {
+		return fmt.Errorf("math compliance did not qualify for a supported tier")
+	}
+	return nil
+}
+
+func floatPointer(value float64) *float64 {
+	return &value
 }

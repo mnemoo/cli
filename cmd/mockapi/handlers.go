@@ -1,11 +1,16 @@
 package main
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mnemoo/cli/internal/api"
 )
@@ -98,6 +103,26 @@ func (s *Server) handleTeamBalance(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, b)
 }
 
+// GET /teams/{team}/teamStats
+func (s *Server) handleTeamStats(w http.ResponseWriter, r *http.Request) {
+	stats, ok := teamOperatorStats[r.PathValue("team")]
+	if !ok {
+		writeErr(w, http.StatusNotFound, "team not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
+}
+
+// GET /teams/{team}/payments/method
+func (s *Server) handlePaymentMethod(w http.ResponseWriter, r *http.Request) {
+	method, ok := paymentMethods[r.PathValue("team")]
+	if !ok {
+		writeErr(w, http.StatusNotFound, "team not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, method)
+}
+
 // GET /teams/{team}/games/{game}/stats
 func (s *Server) handleGameStats(w http.ResponseWriter, r *http.Request) {
 	team := r.PathValue("team")
@@ -111,7 +136,97 @@ func (s *Server) handleGameStats(w http.ResponseWriter, r *http.Request) {
 			Stats: []api.GameModeStat{},
 		}
 	}
-	writeJSON(w, http.StatusOK, stats)
+	writeJSON(w, http.StatusOK, scaleGameStats(stats, requestedRangeScale(r)))
+}
+
+// GET /teams/{team}/graph?game=...&start=...&end=...
+func (s *Server) handleGameGraph(w http.ResponseWriter, r *http.Request) {
+	team := r.PathValue("team")
+	game := r.URL.Query().Get("game")
+	stats, ok := gameStats[team+"/"+game]
+	if !ok || len(stats.Stats) == 0 {
+		writeJSON(w, http.StatusOK, api.StatsGraphResponse{})
+		return
+	}
+
+	end := time.Now().Unix()
+	start := end - int64(24*time.Hour/time.Second)
+	if parsed, err := strconv.ParseInt(r.URL.Query().Get("start"), 10, 64); err == nil {
+		start = parsed
+	}
+	if parsed, err := strconv.ParseInt(r.URL.Query().Get("end"), 10, 64); err == nil {
+		end = parsed
+	}
+	if end <= start {
+		writeErr(w, http.StatusBadRequest, "end must be after start")
+		return
+	}
+
+	points := int((end - start) / int64(30*time.Minute/time.Second))
+	if points < 1 {
+		points = 1
+	}
+	if points > 1_500 {
+		points = 1_500
+	}
+	var totalTurnover, totalProfit, totalCount float64
+	for _, stat := range stats.Stats {
+		totalTurnover += stat.Turnover
+		totalProfit += stat.Profit
+		totalCount += float64(stat.Count)
+	}
+	actualEdge := 0.04
+	if totalTurnover > 0 {
+		actualEdge = totalProfit / totalTurnover
+	}
+	scale := requestedRangeScale(r)
+	totalTurnover *= scale
+	totalCount *= scale
+	bucketSeconds := float64(end-start) / float64(points)
+
+	graph := api.StatsGraphResponse{
+		Buckets: make([]string, points), Turnover: make([]float64, points),
+		Profit: make([]float64, points), Count: make([]float64, points),
+	}
+	for i := 0; i < points; i++ {
+		wave := 1 + 0.35*math.Sin(float64(i)*0.53) + 0.15*math.Cos(float64(i)*0.17)
+		turnover := totalTurnover / float64(points) * wave
+		profitWave := actualEdge + 0.018*math.Sin(float64(i)*0.79)
+		graph.Buckets[i] = strconv.FormatInt(start+int64(float64(i)*bucketSeconds), 10)
+		graph.Turnover[i] = turnover
+		graph.Profit[i] = turnover * profitWave
+		graph.Count[i] = math.Max(1, totalCount/float64(points)*wave)
+	}
+	writeJSON(w, http.StatusOK, graph)
+}
+
+func requestedRangeScale(r *http.Request) float64 {
+	start, startErr := strconv.ParseInt(r.URL.Query().Get("start"), 10, 64)
+	end, endErr := strconv.ParseInt(r.URL.Query().Get("end"), 10, 64)
+	if startErr != nil || endErr != nil || end <= start {
+		return 1
+	}
+	scale := float64(end-start) / float64(int64(30*24*time.Hour/time.Second))
+	if scale < 0.001 {
+		return 0.001
+	}
+	return scale
+}
+
+func scaleGameStats(stats api.GameStatsByModeResponse, scale float64) api.GameStatsByModeResponse {
+	if scale == 1 {
+		return stats
+	}
+	result := stats
+	result.Stats = make([]api.GameModeStat, len(stats.Stats))
+	for i, stat := range stats.Stats {
+		stat.Count = int64(math.Round(float64(stat.Count) * scale))
+		stat.Turnover *= scale
+		stat.Profit *= scale
+		stat.ExpectedReturn *= scale
+		result.Stats[i] = stat
+	}
+	return result
 }
 
 // ---------------------------------------------------------------------------
@@ -212,12 +327,30 @@ func (s *Server) handleCompleteUpload(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "upload session not found")
 		return
 	}
-	// Derive a composite etag (we don't reconstruct the real S3 algorithm —
-	// the client doesn't verify it against anything).
-	etag := fmt.Sprintf("\"mockmpu-%s-%d\"", body.UploadID[:8], len(body.Parts))
+	etag, err := multipartETag(body.Parts)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid multipart etag: "+err.Error())
+		return
+	}
 	s.state.PutScratch(session.Team, session.Game, session.Path, etag, session.Size)
 
 	writeJSON(w, http.StatusOK, api.CompleteResponse{ETag: etag})
+}
+
+func multipartETag(parts []api.FileCompletePartBody) (string, error) {
+	if len(parts) == 0 {
+		return "", fmt.Errorf("parts are required")
+	}
+	composite := md5.New()
+	for _, part := range parts {
+		value := strings.Trim(part.ETag, `"`)
+		digest, err := hex.DecodeString(value)
+		if err != nil || len(digest) != md5.Size {
+			return "", fmt.Errorf("part %d has invalid etag", part.Number)
+		}
+		_, _ = composite.Write(digest)
+	}
+	return fmt.Sprintf(`"%s-%d"`, hex.EncodeToString(composite.Sum(nil)), len(parts)), nil
 }
 
 // ---------------------------------------------------------------------------

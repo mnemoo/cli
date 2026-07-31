@@ -104,6 +104,7 @@ demo-upload: ## Run a non-interactive upload of the demo math bundle (CLI path, 
 		./$(BIN_DIR)/stakecli upload \
 			--team neon-labs --game cyber-samurai \
 			--type math --path $(BUNDLE_DIR)/math \
+			--compliance \
 			--yes --publish
 
 .PHONY: demo

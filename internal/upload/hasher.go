@@ -8,7 +8,18 @@ import (
 	"os"
 )
 
-const ChunkSize = 100 * 1024 * 1024 // 100 MiB
+const (
+	// MultipartThreshold follows the Stake Engine API contract: files above
+	// 100 MiB use multipart upload, smaller files use a single PUT.
+	MultipartThreshold int64 = 100 * 1024 * 1024
+	// PartSize is deliberately smaller than the multipart threshold so a large
+	// math book can keep several S3 connections busy without buffering huge
+	// chunks in memory.
+	PartSize int64 = 8 * 1024 * 1024
+	// ChunkSize is kept as a compatibility alias for callers that use the API
+	// threshold. Multipart hashing and upload offsets use PartSize instead.
+	ChunkSize = MultipartThreshold
+)
 
 type PartHash struct {
 	Number int
@@ -23,8 +34,8 @@ type ETagResult struct {
 }
 
 // ComputeETag calculates the S3-compatible ETag for a file.
-// Small files (<=ChunkSize): simple MD5.
-// Large files (>ChunkSize): composite MD5 of concatenated part MD5s + part count suffix.
+// Small files (<=MultipartThreshold): simple MD5.
+// Large files: composite MD5 over PartSize chunks plus the part count suffix.
 func ComputeETag(path string, fileSize int64) (*ETagResult, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -32,7 +43,7 @@ func ComputeETag(path string, fileSize int64) (*ETagResult, error) {
 	}
 	defer func() { _ = f.Close() }()
 
-	if fileSize <= ChunkSize {
+	if fileSize <= MultipartThreshold {
 		return computeSingleETag(f)
 	}
 	return computeMultipartETag(f, fileSize)
@@ -55,7 +66,7 @@ func computeMultipartETag(r io.Reader, fileSize int64) (*ETagResult, error) {
 	remaining := fileSize
 
 	for remaining > 0 {
-		chunkLen := int64(ChunkSize)
+		chunkLen := PartSize
 		if remaining < chunkLen {
 			chunkLen = remaining
 		}

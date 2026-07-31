@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
+	"io"
 )
 
 func (c *Client) ListScratch(ctx context.Context, team, game, path string) ([]ScratchObject, error) {
@@ -101,10 +101,6 @@ func (c *Client) Publish(ctx context.Context, team, game, kind string) (*Publish
 	return &result, nil
 }
 
-func (c *Client) UploadToS3(ctx context.Context, presignedURL string, data []byte, contentType string) error {
-	return c.putBytes(ctx, presignedURL, data, contentType)
-}
-
-func (c *Client) UploadToS3WithCounter(ctx context.Context, presignedURL string, data []byte, contentType string, counter *atomic.Int64) error {
-	return c.putBytesWithCounter(ctx, presignedURL, data, contentType, counter)
+func (c *Client) UploadToS3(ctx context.Context, presignedURL string, body io.Reader, size int64, contentType string, onRead func(int64), onBodySent func()) error {
+	return c.putReader(ctx, presignedURL, body, size, contentType, onRead, onBodySent)
 }

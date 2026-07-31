@@ -4,23 +4,31 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
-	"github.com/mnemoo/cli/internal/api"
+	"github.com/mnemoo/cli/internal/service"
+	"github.com/mnemoo/cli/internal/stake"
+)
+
+var (
+	profitStyle           = lipgloss.NewStyle().Foreground(lipgloss.Color("14"))
+	expectedStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	selectedProfitStyle   = profitStyle.Bold(true).Background(lipgloss.Color("8"))
+	selectedExpectedStyle = expectedStyle.Bold(true).Background(lipgloss.Color("8"))
 )
 
 type TeamSelectedMsg struct {
-	Team api.TeamListItem
+	Team stake.Team
 }
 
 type GoBackMsg struct{}
 
 type teamsLoadedMsg struct {
-	teams    []api.TeamListItem
-	balances map[string]*api.TeamBalance
+	teams     []stake.Team
+	overviews map[string]service.TeamOverview
 }
 
 type teamsErrorMsg struct {
@@ -36,20 +44,20 @@ const (
 )
 
 type Model struct {
-	client   *api.Client
-	teams    []api.TeamListItem
-	balances map[string]*api.TeamBalance
-	cursor   int
-	state    state
-	spinner  spinner.Model
-	err      error
-	width    int
-	height   int
+	service   *service.Service
+	teams     []stake.Team
+	overviews map[string]service.TeamOverview
+	cursor    int
+	state     state
+	spinner   spinner.Model
+	err       error
+	width     int
+	height    int
 }
 
-func New(client *api.Client) Model {
+func New(appService *service.Service) Model {
 	return Model{
-		client:  client,
+		service: appService,
 		state:   stateLoading,
 		spinner: spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
@@ -60,33 +68,20 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) loadTeams() tea.Cmd {
-	client := m.client
+	appService := m.service
 	return func() tea.Msg {
 		ctx := context.Background()
-		teams, err := client.ListTeams(ctx)
+		overviews, err := appService.ListTeamOverviews(ctx)
 		if err != nil {
 			return teamsErrorMsg{err: err}
 		}
-
-		balances := make(map[string]*api.TeamBalance, len(teams))
-		var mu sync.Mutex
-		var wg sync.WaitGroup
-		for _, t := range teams {
-			wg.Add(1)
-			go func(slug string) {
-				defer wg.Done()
-				b, err := client.GetTeamBalance(ctx, slug)
-				if err != nil {
-					return
-				}
-				mu.Lock()
-				balances[slug] = b
-				mu.Unlock()
-			}(t.Slug)
+		teams := make([]stake.Team, len(overviews))
+		bySlug := make(map[string]service.TeamOverview, len(overviews))
+		for i, overview := range overviews {
+			teams[i] = overview.Team
+			bySlug[overview.Team.Slug] = overview
 		}
-		wg.Wait()
-
-		return teamsLoadedMsg{teams: teams, balances: balances}
+		return teamsLoadedMsg{teams: teams, overviews: bySlug}
 	}
 }
 
@@ -99,7 +94,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case teamsLoadedMsg:
 		m.teams = msg.teams
-		m.balances = msg.balances
+		m.overviews = msg.overviews
 		m.state = stateList
 		return m, nil
 
@@ -175,23 +170,61 @@ func (m Model) View() string {
 		if len(m.teams) == 0 {
 			b.WriteString("  No teams found.\n")
 		} else {
+			fmt.Fprintf(&b, "  %-2s %-22s %10s %18s %18s %14s\n",
+				"", "Team", "Online", "Profit Share (10%)", "Expected (7.5%)", "Carry")
+			b.WriteString("  " + strings.Repeat("─", 91) + "\n")
+
 			for i, t := range m.teams {
 				cursor := "  "
 				if i == m.cursor {
 					cursor = "> "
 				}
 
-				standings := "—"
-				if bal, ok := m.balances[t.Slug]; ok {
-					standings = formatBalance(bal.Position)
+				profitShare := "—"
+				expected := "—"
+				carry := "—"
+				online := "—"
+				method := ""
+				if overview, ok := m.overviews[t.Slug]; ok {
+					if overview.Earnings != nil {
+						profitShare = formatBalance(overview.Earnings.ProfitShare)
+						expected = formatBalance(overview.Earnings.ExpectedProfit)
+					}
+					if overview.Balance != nil {
+						carry = formatBalance(overview.Balance.Carry)
+					}
+					if overview.PaymentMethod != nil {
+						method = overview.PaymentMethod.Current
+					}
+					if overview.OnlinePlayers != nil {
+						online = formatCount(*overview.OnlinePlayers)
+					}
 				}
 
-				fmt.Fprintf(&b, "  %s%-20s  Standings: %s\n",
-					cursor, t.Name, standings)
+				name := t.Name
+				if len(name) > 22 {
+					name = name[:21] + "…"
+				}
+
+				profitMarker, expectedMarker := "  ", "  "
+				profitCellStyle, expectedCellStyle := profitStyle, expectedStyle
+				switch method {
+				case "profit":
+					profitMarker = "● "
+					profitCellStyle = selectedProfitStyle
+				case "turnover":
+					expectedMarker = "● "
+					expectedCellStyle = selectedExpectedStyle
+				}
+				profitCell := profitCellStyle.Render(fmt.Sprintf("%s%16s", profitMarker, profitShare))
+				expectedCell := expectedCellStyle.Render(fmt.Sprintf("%s%16s", expectedMarker, expected))
+
+				fmt.Fprintf(&b, "  %s%-22s %10s %s %s %14s\n",
+					cursor, name, online, profitCell, expectedCell, carry)
 			}
 		}
 
-		b.WriteString("\n  Enter: select • Esc: back\n")
+		b.WriteString("\n  ● selected payment model • Enter: select • Esc: back\n")
 
 	case stateError:
 		fmt.Fprintf(&b, "  Error: %s\n\n", m.err.Error())
@@ -207,4 +240,12 @@ func formatBalance(raw float64) string {
 		return fmt.Sprintf("$%.2f", val)
 	}
 	return fmt.Sprintf("-$%.2f", -val)
+}
+
+func formatCount(value int) string {
+	raw := fmt.Sprintf("%d", value)
+	for i := len(raw) - 3; i > 0; i -= 3 {
+		raw = raw[:i] + "," + raw[i:]
+	}
+	return raw
 }

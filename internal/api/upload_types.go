@@ -1,5 +1,7 @@
 package api
 
+import "github.com/mnemoo/cli/internal/stake"
+
 type FileUploadBody struct {
 	Team string `json:"team"`
 	Game string `json:"game"`
@@ -95,29 +97,7 @@ type PublishResponse struct {
 	Changed bool `json:"changed"`
 }
 
-type PublishResult struct {
-	Version int     `json:"version"`
-	Changed bool    `json:"changed"`
-	Code    string  `json:"code"`
-	Message string  `json:"message"`
-	File    *string `json:"file,omitempty"`
-	Mode    *string `json:"mode,omitempty"`
-}
-
-func (r *PublishResult) IsError() bool {
-	return r.Code != ""
-}
-
-func (r *PublishResult) Error() string {
-	s := r.Message
-	if r.File != nil {
-		s += " (file: " + *r.File + ")"
-	}
-	if r.Mode != nil {
-		s += " (mode: " + *r.Mode + ")"
-	}
-	return s
-}
+type PublishResult = stake.PublishResult
 
 type PublishError struct {
 	Code    string  `json:"code"`
@@ -126,8 +106,4 @@ type PublishError struct {
 	Mode    *string `json:"mode"`
 }
 
-type ScratchObject struct {
-	Key  string `json:"key"`
-	ETag string `json:"etag"`
-	Size int64  `json:"size"`
-}
+type ScratchObject = stake.ScratchObject

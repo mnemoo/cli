@@ -1,7 +1,8 @@
 // Command demo-bundle generates a deterministic math + front bundle for
 // the mockapi demo recording. The output is sized for a visually pleasing
-// upload (~25 MiB across ~15 files) and passes stakecli's math compliance
-// check with realistic slot-game RTP numbers.
+// upload (~25 MiB across ~15 files) and passes stakecli's bundle and hard math
+// compliance checks with realistic slot-game RTP numbers. Full tier
+// certification additionally requires platform bet context.
 //
 // Usage:
 //

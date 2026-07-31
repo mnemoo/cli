@@ -1,82 +1,20 @@
 package api
 
-type TeamListItem struct {
-	Name       string     `json:"name"`
-	Slug       string     `json:"slug"`
-	Image      *string    `json:"image"`
-	TrustLevel float64    `json:"trustLevel"`
-	Stats      *TeamStats `json:"stats"`
-}
+import "github.com/mnemoo/cli/internal/stake"
 
-type TeamStats struct {
-	Day   *StatPeriod `json:"day"`
-	Month *StatPeriod `json:"month"`
-}
-
-type StatPeriod struct {
-	Count    int64   `json:"count"`
-	Turnover float64 `json:"turnover"`
-	Profit   float64 `json:"profit"`
-}
-
-type TeamGameCard struct {
-	Name          string        `json:"name"`
-	Slug          string        `json:"slug"`
-	Rating        *float64      `json:"rating"`
-	Image         *string       `json:"image"`
-	Published     bool          `json:"published"`
-	Approval      *GameApproval `json:"approval"`
-	Stats         *TeamStats    `json:"stats"`
-	OnlinePlayers int           `json:"onlinePlayers"`
-}
-
-type GameApproval struct {
-	Open   bool   `json:"open"`
-	Locked bool   `json:"locked"`
-	Column string `json:"column"`
-}
-
-type TeamGameDetail struct {
-	Name          string        `json:"name"`
-	Slug          string        `json:"slug"`
-	Image         *string       `json:"image"`
-	Rating        *float64      `json:"rating"`
-	Approval      *GameApproval `json:"approval"`
-	OnlinePlayers int           `json:"onlinePlayers"`
-}
-
-type VersionApproved struct {
-	Slug   string `json:"slug"`
-	Active bool   `json:"active"`
-}
-
-type GameVersionHistoryItem struct {
-	Type     string            `json:"type"`
-	Created  float64           `json:"created"`
-	Version  int               `json:"version"`
-	Approved []VersionApproved `json:"approved"`
-}
-
-type TeamBalance struct {
-	Position float64 `json:"position"`
-	Carry    float64 `json:"carry"`
-}
-
-type GameModeStat struct {
-	Mode          string  `json:"mode"`
-	Count         int64   `json:"count"`
-	Turnover      float64 `json:"turnover"`
-	Profit        float64 `json:"profit"`
-	ExpectedRTP   float64 `json:"expectedReturn"`
-	EffectiveRTP  float64 `json:"effectiveRtp"`
-	NormalizedRTP float64 `json:"normalizedRtp"`
-	Cost          float64 `json:"cost"`
-	RTP           float64 `json:"rtp"`
-}
-
-type GameStatsByModeResponse struct {
-	Name  string         `json:"name"`
-	Slug  string         `json:"slug"`
-	Image string         `json:"image"`
-	Stats []GameModeStat `json:"stats"`
-}
+// Compatibility aliases keep the transport API stable while domain ownership
+// lives in internal/stake. New application code should use stake directly.
+type TeamListItem = stake.Team
+type TeamStats = stake.TeamStats
+type StatPeriod = stake.StatPeriod
+type TeamGameCard = stake.Game
+type GameApproval = stake.GameApproval
+type TeamGameDetail = stake.GameDetail
+type VersionApproved = stake.VersionApproval
+type GameVersionHistoryItem = stake.GameVersion
+type TeamBalance = stake.TeamBalance
+type TeamOperatorStat = stake.TeamOperatorStat
+type PaymentMethod = stake.PaymentMethod
+type GameModeStat = stake.GameModeStat
+type GameStatsByModeResponse = stake.GameStats
+type StatsGraphResponse = stake.StatsGraph

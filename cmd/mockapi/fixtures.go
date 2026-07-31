@@ -15,6 +15,8 @@ var demoUser = auth.User{
 
 func ptrFloat(f float64) *float64 { return &f }
 
+func expectedGameReturn(turnover, rtp float64) float64 { return turnover * (1 - rtp) }
+
 // ---------------------------------------------------------------------------
 // TUI formatting reference (internal/tui/games/games.go):
 //     Profit  displayed as  raw / 1e7   → "$X,XXX.XX"
@@ -140,17 +142,30 @@ var gamesByTeam = map[string][]api.TeamGameCard{
 // Balances per team.
 // ---------------------------------------------------------------------------
 
-// Position displayed as raw / 1e6. Standings = current month profit.
-// Must match sum of monthly game profits per team.
-// Neon Labs:      $2,841+$2,112+$3,892+$1,882+$1,412 = ~$12,139
-// Aurora Studios: $1,882+$1,442+$2,221+$812           = ~$6,357
-// Crimson Games:  $1,112+$788+$1,312                  = ~$3,212
-// Indie Collab:   $442+$294                            = ~$736
+// Position is the current payout position for the team's selected payment
+// model. It is not Profit Share and must not be compared with ExpectedProfit
+// to manufacture a standing value in the client.
 var balances = map[string]api.TeamBalance{
-	"neon-labs":      {Position: 12_139_000_000, Carry: 1_441_000_000},
-	"aurora-studios": {Position: 6_357_000_000, Carry: 812_000_000},
-	"crimson-games":  {Position: 3_212_000_000, Carry: 437_000_000},
-	"indie-collab":   {Position: 736_000_000, Carry: 98_000_000},
+	"neon-labs":      {Position: 12_139_000_000, ExpectedProfit: 10_842_000_000, Carry: 1_441_000_000},
+	"aurora-studios": {Position: 6_357_000_000, ExpectedProfit: 7_114_000_000, Carry: 812_000_000},
+	"crimson-games":  {Position: 3_212_000_000, ExpectedProfit: 2_984_000_000, Carry: 437_000_000},
+	"indie-collab":   {Position: 736_000_000, ExpectedProfit: 851_000_000, Carry: 98_000_000},
+}
+
+// Team stats contain raw portal amounts. The overview applies the publisher
+// shares: Profit × 10% and ExpectedProfit × 7.5%.
+var teamOperatorStats = map[string][]api.TeamOperatorStat{
+	"neon-labs":      {{BetCount: 3_847_239, Turnover: 2_042_876_000_000, Profit: 121_407_000_000, ExpectedProfit: 144_560_000_000, UniqueUsers: 42_311, Operator: "stake"}},
+	"aurora-studios": {{BetCount: 2_410_882, Turnover: 1_132_092_000_000, Profit: 63_588_000_000, ExpectedProfit: 94_853_333_333, UniqueUsers: 28_104, Operator: "stake"}},
+	"crimson-games":  {{BetCount: 1_284_501, Turnover: 738_683_000_000, Profit: 32_134_000_000, ExpectedProfit: 39_786_666_667, UniqueUsers: 16_442, Operator: "stake"}},
+	"indie-collab":   {{BetCount: 542_881, Turnover: 140_554_000_000, Profit: 7_366_000_000, ExpectedProfit: 11_346_666_667, UniqueUsers: 5_120, Operator: "stake"}},
+}
+
+var paymentMethods = map[string]api.PaymentMethod{
+	"neon-labs":      {Current: "profit", Next: "profit"},
+	"aurora-studios": {Current: "turnover", Next: "turnover"},
+	"crimson-games":  {Current: "profit", Next: "profit"},
+	"indie-collab":   {Current: "turnover", Next: "turnover"},
 }
 
 // ---------------------------------------------------------------------------
@@ -159,68 +174,69 @@ var balances = map[string]api.TeamBalance{
 // ---------------------------------------------------------------------------
 
 // RTP values as fractions (0.9642 = 96.42%) — TUI multiplies by 100.
-// Turnover/Profit use the same /1e7 formatting as the games list.
+// Turnover, raw GGR profit, and expected GGR (turnover × edge) are micro-units. The
+// TUI derives the publisher amounts with 10% actual / 7.5% expected shares.
 var gameStats = map[string]api.GameStatsByModeResponse{
 	"neon-labs/gods-of-neon": {
 		Name: "Gods of Neon", Slug: "gods-of-neon",
 		Stats: []api.GameModeStat{
-			{Mode: "base", Count: 823_412, Turnover: 82_341_200_000, Profit: 2_982_050_000, Cost: 1.0, ExpectedRTP: 0.9642, EffectiveRTP: 0.9638, NormalizedRTP: 0.9640, RTP: 0.9638},
-			{Mode: "freespins", Count: 18_224, Turnover: 182_240_000_000, Profit: 6_888_241_000, Cost: 100.0, ExpectedRTP: 0.9621, EffectiveRTP: 0.9614, NormalizedRTP: 0.9618, RTP: 0.9614},
-			{Mode: "bonus_buy", Count: 11_442, Turnover: 228_840_000_000, Profit: 8_412_209_000, Cost: 200.0, ExpectedRTP: 0.9631, EffectiveRTP: 0.9628, NormalizedRTP: 0.9630, RTP: 0.9628},
-			{Mode: "max_buy", Count: 4_228, Turnover: 211_400_000_000, Profit: 7_811_044_000, Cost: 500.0, ExpectedRTP: 0.9644, EffectiveRTP: 0.9641, NormalizedRTP: 0.9642, RTP: 0.9641},
+			{Mode: "base", Count: 823_412, Turnover: 82_341_200_000, Profit: 2_982_050_000, Cost: 1.0, ExpectedReturn: expectedGameReturn(82_341_200_000, 0.9642), EffectiveRTP: 0.9638, NormalizedRTP: 0.9640, RTP: 0.9638},
+			{Mode: "freespins", Count: 18_224, Turnover: 182_240_000_000, Profit: 6_888_241_000, Cost: 100.0, ExpectedReturn: expectedGameReturn(182_240_000_000, 0.9621), EffectiveRTP: 0.9614, NormalizedRTP: 0.9618, RTP: 0.9614},
+			{Mode: "bonus_buy", Count: 11_442, Turnover: 228_840_000_000, Profit: 8_412_209_000, Cost: 200.0, ExpectedReturn: expectedGameReturn(228_840_000_000, 0.9631), EffectiveRTP: 0.9628, NormalizedRTP: 0.9630, RTP: 0.9628},
+			{Mode: "max_buy", Count: 4_228, Turnover: 211_400_000_000, Profit: 7_811_044_000, Cost: 500.0, ExpectedReturn: expectedGameReturn(211_400_000_000, 0.9644), EffectiveRTP: 0.9641, NormalizedRTP: 0.9642, RTP: 0.9641},
 		},
 	},
 	"neon-labs/midnight-vault": {
 		Name: "Midnight Vault", Slug: "midnight-vault",
 		Stats: []api.GameModeStat{
-			{Mode: "base", Count: 633_441, Turnover: 63_344_100_000, Profit: 2_288_112_000, Cost: 1.0, ExpectedRTP: 0.9638, EffectiveRTP: 0.9632, RTP: 0.9632},
-			{Mode: "freespins", Count: 12_881, Turnover: 128_810_000_000, Profit: 4_821_108_000, Cost: 100.0, ExpectedRTP: 0.9618, EffectiveRTP: 0.9611, RTP: 0.9611},
-			{Mode: "bonus_buy", Count: 8_112, Turnover: 162_240_000_000, Profit: 6_244_022_000, Cost: 200.0, ExpectedRTP: 0.9622, EffectiveRTP: 0.9618, RTP: 0.9618},
+			{Mode: "base", Count: 633_441, Turnover: 63_344_100_000, Profit: 2_288_112_000, Cost: 1.0, ExpectedReturn: expectedGameReturn(63_344_100_000, 0.9638), EffectiveRTP: 0.9632, RTP: 0.9632},
+			{Mode: "freespins", Count: 12_881, Turnover: 128_810_000_000, Profit: 4_821_108_000, Cost: 100.0, ExpectedReturn: expectedGameReturn(128_810_000_000, 0.9618), EffectiveRTP: 0.9611, RTP: 0.9611},
+			{Mode: "bonus_buy", Count: 8_112, Turnover: 162_240_000_000, Profit: 6_244_022_000, Cost: 200.0, ExpectedReturn: expectedGameReturn(162_240_000_000, 0.9622), EffectiveRTP: 0.9618, RTP: 0.9618},
 		},
 	},
 	"neon-labs/thunder-empress": {
 		Name: "Thunder Empress", Slug: "thunder-empress",
 		Stats: []api.GameModeStat{
-			{Mode: "base", Count: 1_038_112, Turnover: 103_811_200_000, Profit: 3_841_109_000, Cost: 1.0, ExpectedRTP: 0.9670, EffectiveRTP: 0.9665, RTP: 0.9665},
-			{Mode: "freespins", Count: 28_112, Turnover: 281_120_000_000, Profit: 10_888_210_000, Cost: 100.0, ExpectedRTP: 0.9652, EffectiveRTP: 0.9648, RTP: 0.9648},
-			{Mode: "bonus_buy", Count: 16_441, Turnover: 328_820_000_000, Profit: 12_844_100_000, Cost: 200.0, ExpectedRTP: 0.9659, EffectiveRTP: 0.9655, RTP: 0.9655},
-			{Mode: "max_buy", Count: 7_114, Turnover: 355_700_000_000, Profit: 13_488_912_000, Cost: 500.0, ExpectedRTP: 0.9668, EffectiveRTP: 0.9663, RTP: 0.9663},
+			{Mode: "base", Count: 1_038_112, Turnover: 103_811_200_000, Profit: 3_841_109_000, Cost: 1.0, ExpectedReturn: expectedGameReturn(103_811_200_000, 0.9670), EffectiveRTP: 0.9665, RTP: 0.9665},
+			{Mode: "freespins", Count: 28_112, Turnover: 281_120_000_000, Profit: 10_888_210_000, Cost: 100.0, ExpectedReturn: expectedGameReturn(281_120_000_000, 0.9652), EffectiveRTP: 0.9648, RTP: 0.9648},
+			{Mode: "bonus_buy", Count: 16_441, Turnover: 328_820_000_000, Profit: 12_844_100_000, Cost: 200.0, ExpectedReturn: expectedGameReturn(328_820_000_000, 0.9659), EffectiveRTP: 0.9655, RTP: 0.9655},
+			{Mode: "max_buy", Count: 7_114, Turnover: 355_700_000_000, Profit: 13_488_912_000, Cost: 500.0, ExpectedReturn: expectedGameReturn(355_700_000_000, 0.9668), EffectiveRTP: 0.9663, RTP: 0.9663},
 		},
 	},
 	"neon-labs/sakura-fortune-x": {
 		Name: "Sakura Fortune X", Slug: "sakura-fortune-x",
 		Stats: []api.GameModeStat{
-			{Mode: "base", Count: 518_220, Turnover: 51_822_000_000, Profit: 1_844_118_000, Cost: 1.0, ExpectedRTP: 0.9644, EffectiveRTP: 0.9638, RTP: 0.9638},
-			{Mode: "freespins", Count: 10_224, Turnover: 102_240_000_000, Profit: 3_811_209_000, Cost: 100.0, ExpectedRTP: 0.9628, EffectiveRTP: 0.9620, RTP: 0.9620},
+			{Mode: "base", Count: 518_220, Turnover: 51_822_000_000, Profit: 1_844_118_000, Cost: 1.0, ExpectedReturn: expectedGameReturn(51_822_000_000, 0.9644), EffectiveRTP: 0.9638, RTP: 0.9638},
+			{Mode: "freespins", Count: 10_224, Turnover: 102_240_000_000, Profit: 3_811_209_000, Cost: 100.0, ExpectedReturn: expectedGameReturn(102_240_000_000, 0.9628), EffectiveRTP: 0.9620, RTP: 0.9620},
 		},
 	},
 	"neon-labs/nebula-rush": {
 		Name: "Nebula Rush", Slug: "nebula-rush",
 		Stats: []api.GameModeStat{
-			{Mode: "base", Count: 421_122, Turnover: 42_112_200_000, Profit: 1_488_211_000, Cost: 1.0, ExpectedRTP: 0.9650, EffectiveRTP: 0.9643, RTP: 0.9643},
-			{Mode: "freespins", Count: 8_441, Turnover: 84_410_000_000, Profit: 3_144_100_000, Cost: 100.0, ExpectedRTP: 0.9631, EffectiveRTP: 0.9627, RTP: 0.9627},
-			{Mode: "bonus_buy", Count: 5_112, Turnover: 102_240_000_000, Profit: 3_899_241_000, Cost: 200.0, ExpectedRTP: 0.9638, EffectiveRTP: 0.9632, RTP: 0.9632},
+			{Mode: "base", Count: 421_122, Turnover: 42_112_200_000, Profit: 1_488_211_000, Cost: 1.0, ExpectedReturn: expectedGameReturn(42_112_200_000, 0.9650), EffectiveRTP: 0.9643, RTP: 0.9643},
+			{Mode: "freespins", Count: 8_441, Turnover: 84_410_000_000, Profit: 3_144_100_000, Cost: 100.0, ExpectedReturn: expectedGameReturn(84_410_000_000, 0.9631), EffectiveRTP: 0.9627, RTP: 0.9627},
+			{Mode: "bonus_buy", Count: 5_112, Turnover: 102_240_000_000, Profit: 3_899_241_000, Cost: 200.0, ExpectedReturn: expectedGameReturn(102_240_000_000, 0.9638), EffectiveRTP: 0.9632, RTP: 0.9632},
 		},
 	},
 	"aurora-studios/aurora-rising": {
 		Name: "Aurora Rising", Slug: "aurora-rising",
 		Stats: []api.GameModeStat{
-			{Mode: "base", Count: 659_881, Turnover: 65_988_100_000, Profit: 2_444_112_000, Cost: 1.0, ExpectedRTP: 0.9635, EffectiveRTP: 0.9630, RTP: 0.9630},
-			{Mode: "freespins", Count: 13_441, Turnover: 134_410_000_000, Profit: 5_011_200_000, Cost: 100.0, ExpectedRTP: 0.9620, EffectiveRTP: 0.9614, RTP: 0.9614},
+			{Mode: "base", Count: 659_881, Turnover: 65_988_100_000, Profit: 2_444_112_000, Cost: 1.0, ExpectedReturn: expectedGameReturn(65_988_100_000, 0.9635), EffectiveRTP: 0.9630, RTP: 0.9630},
+			{Mode: "freespins", Count: 13_441, Turnover: 134_410_000_000, Profit: 5_011_200_000, Cost: 100.0, ExpectedReturn: expectedGameReturn(134_410_000_000, 0.9620), EffectiveRTP: 0.9614, RTP: 0.9614},
 		},
 	},
 	"aurora-studios/arctic-reels": {
 		Name: "Arctic Reels", Slug: "arctic-reels",
 		Stats: []api.GameModeStat{
-			{Mode: "base", Count: 582_110, Turnover: 58_211_000_000, Profit: 2_144_112_000, Cost: 1.0, ExpectedRTP: 0.9628, EffectiveRTP: 0.9622, RTP: 0.9622},
-			{Mode: "freespins", Count: 11_882, Turnover: 118_820_000_000, Profit: 4_411_200_000, Cost: 100.0, ExpectedRTP: 0.9618, EffectiveRTP: 0.9611, RTP: 0.9611},
+			{Mode: "base", Count: 582_110, Turnover: 58_211_000_000, Profit: 2_144_112_000, Cost: 1.0, ExpectedReturn: expectedGameReturn(58_211_000_000, 0.9628), EffectiveRTP: 0.9622, RTP: 0.9622},
+			{Mode: "freespins", Count: 11_882, Turnover: 118_820_000_000, Profit: 4_411_200_000, Cost: 100.0, ExpectedReturn: expectedGameReturn(118_820_000_000, 0.9618), EffectiveRTP: 0.9611, RTP: 0.9611},
 		},
 	},
 	"crimson-games/inferno-empress": {
 		Name: "Inferno Empress", Slug: "inferno-empress",
 		Stats: []api.GameModeStat{
-			{Mode: "base", Count: 356_881, Turnover: 35_688_100_000, Profit: 1_288_200_000, Cost: 1.0, ExpectedRTP: 0.9641, EffectiveRTP: 0.9633, RTP: 0.9633},
-			{Mode: "bonus_buy", Count: 4_112, Turnover: 82_240_000_000, Profit: 3_044_112_000, Cost: 200.0, ExpectedRTP: 0.9630, EffectiveRTP: 0.9625, RTP: 0.9625},
+			{Mode: "base", Count: 356_881, Turnover: 35_688_100_000, Profit: 1_288_200_000, Cost: 1.0, ExpectedReturn: expectedGameReturn(35_688_100_000, 0.9641), EffectiveRTP: 0.9633, RTP: 0.9633},
+			{Mode: "bonus_buy", Count: 4_112, Turnover: 82_240_000_000, Profit: 3_044_112_000, Cost: 200.0, ExpectedReturn: expectedGameReturn(82_240_000_000, 0.9630), EffectiveRTP: 0.9625, RTP: 0.9625},
 		},
 	},
 }

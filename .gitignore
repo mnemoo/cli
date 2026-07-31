@@ -18,6 +18,7 @@ coverage.out
 
 # Release artifacts
 dist/
+artifacts/
 
 # Generated demo bundle (reproduced by cmd/demo-bundle)
 testdata/demo-bundle/

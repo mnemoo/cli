@@ -9,8 +9,8 @@ import (
 )
 
 type SafetyWarning struct {
-	Level   string // "error" or "warning"
-	Message string
+	Level   string `json:"level"` // "error" or "warning"
+	Message string `json:"message"`
 }
 
 var blacklistedNames = []string{

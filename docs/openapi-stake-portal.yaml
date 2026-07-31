@@ -148,7 +148,35 @@ paths:
                 type: object
                 properties:
                   position: { type: number }
+                  expectedProfit: { type: number }
                   carry: { type: number }
+
+  /api/teams/{team}/graph:
+    get:
+      tags: [teams, games]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+        - name: game
+          in: query
+          required: true
+          schema: { type: string }
+        - name: operator
+          in: query
+          schema: { type: string }
+        - name: start
+          in: query
+          required: true
+          schema: { type: string }
+        - name: end
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsGraphResponse"
 
   /api/teams/{team}/stats:
     get:
@@ -1005,6 +1033,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TeamPaymentsResponse"
+
+  /api/teams/{team}/payments/method:
+    get:
+      tags: [payments, teams]
+      parameters:
+        - $ref: "#/components/parameters/TeamSlug"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentMethodResponse"
 
   /api/teamRanking:
     get:
@@ -2519,6 +2559,7 @@ components:
         betCount: { type: number }
         turnover: { type: number }
         profit: { type: number }
+        expectedProfit: { type: number }
         uniqueUsers: { type: number }
         operator: { type: string }
 
@@ -2537,11 +2578,29 @@ components:
               count: { type: number }
               turnover: { type: number }
               profit: { type: number }
-              expectedReturn: { type: number }
+              expectedReturn:
+                type: number
+                description: Expected GGR (turnover multiplied by house edge) in money micro-units
               effectiveRtp: { type: number }
               normalizedRtp: { type: number }
               cost: { type: number }
               rtp: { type: number }
+
+    StatsGraphResponse:
+      type: object
+      properties:
+        buckets:
+          type: array
+          items: { type: string }
+        profit:
+          type: array
+          items: { type: number }
+        turnover:
+          type: array
+          items: { type: number }
+        count:
+          type: array
+          items: { type: number }
 
     LocationStatsResponse:
       type: object
@@ -2619,6 +2678,7 @@ components:
         rating: { type: number, nullable: true }
         image: { type: string, nullable: true }
         published: { type: boolean }
+        onlinePlayers: { type: integer }
         approval:
           type: object
           nullable: true
@@ -2644,6 +2704,7 @@ components:
         slug: { type: string }
         image: { type: string, nullable: true }
         rating: { type: number, nullable: true }
+        onlinePlayers: { type: integer }
         approval:
           type: object
           nullable: true
@@ -2811,6 +2872,17 @@ components:
               currentStanding: { type: number }
               year: { type: number }
               month: { type: number }
+
+    PaymentMethodResponse:
+      type: object
+      required: [current, next]
+      properties:
+        current:
+          type: string
+          enum: [profit, turnover]
+        next:
+          type: string
+          enum: [profit, turnover]
 
     TeamRankingRow:
       type: object

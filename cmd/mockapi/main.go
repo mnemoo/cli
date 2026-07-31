@@ -79,7 +79,10 @@ func main() {
 	mux.HandleFunc("GET /teams/{team}/games/{game}", srv.requireSID(srv.handleTeamGameDetail))
 	mux.HandleFunc("GET /teams/{team}/games/{game}/versions", srv.requireSID(srv.handleGameVersions))
 	mux.HandleFunc("GET /teams/{team}/games/{game}/stats", srv.requireSID(srv.handleGameStats))
+	mux.HandleFunc("GET /teams/{team}/graph", srv.requireSID(srv.handleGameGraph))
 	mux.HandleFunc("GET /teams/{team}/balance", srv.requireSID(srv.handleTeamBalance))
+	mux.HandleFunc("GET /teams/{team}/teamStats", srv.requireSID(srv.handleTeamStats))
+	mux.HandleFunc("GET /teams/{team}/payments/method", srv.requireSID(srv.handlePaymentMethod))
 
 	// --- File operations ---
 	mux.HandleFunc("GET /file/game/{team}/{game}/scratch/{type}", srv.requireSID(srv.handleListScratch))

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/mnemoo/cli/internal/stake"
 )
 
 var apiBaseURL = getAPIBaseURL()
@@ -17,12 +19,7 @@ func getAPIBaseURL() string {
 	return "https://stake-engine.com/api"
 }
 
-type User struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Image string `json:"image"`
-}
+type User = stake.User
 
 var httpClient = &http.Client{
 	Timeout: 10 * time.Second,

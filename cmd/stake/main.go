@@ -40,14 +40,52 @@ func main() {
 
 func run(cmd string) int {
 	switch cmd {
+	case "compliance":
+		if err := cli.RunCompliance(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+		return 0
+	case "mlr":
+		return cli.RunMLR(os.Args[2:], os.Stdout, os.Stderr)
+	case "repack":
+		if err := cli.RunRepack(os.Args[2:], os.Stdout, os.Stderr); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+		return 0
+	case "publish":
+		if err := cli.RunPublish(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+		return 0
 	case "upload":
 		if err := cli.RunUpload(os.Args[2:]); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
 		return 0
+	case "accelerator":
+		if err := cli.RunAccelerator(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+		return 0
+	case "daemon":
+		if err := cli.RunDaemon(os.Args[2:], os.Stdout, os.Stderr); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+		return 0
 	case "update":
 		if err := cli.RunUpdate(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+		return 0
+	case "mcp":
+		if err := cli.RunMCP(os.Args[2:]); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
@@ -61,7 +99,11 @@ func run(cmd string) int {
 	}
 
 	p := tea.NewProgram(app.New())
-	if _, err := p.Run(); err != nil {
+	finalModel, err := p.Run()
+	if model, ok := finalModel.(app.Model); ok {
+		model.Cleanup()
+	}
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -77,7 +119,7 @@ func startBackgroundUpdateCheck(cmd string) <-chan *updater.CheckResult {
 
 	skip := false
 	switch cmd {
-	case "update", "version", "--version", "-v", "help", "--help", "-h":
+	case "compliance", "daemon", "mlr", "repack", "mcp", "update", "version", "--version", "-v", "help", "--help", "-h":
 		skip = true
 	}
 	if skip {
@@ -123,10 +165,22 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  stakecli              Launch interactive TUI")
+	fmt.Println("  stakecli compliance   Check a local math bundle")
+	fmt.Println("  stakecli mlr          Reweight a LUT to adjust its most-likely result")
+	fmt.Println("  stakecli repack       Estimate better Zstd compression for math books")
 	fmt.Println("  stakecli upload       Upload files to Stake Engine")
+	fmt.Println("  stakecli accelerator  Configure and inspect encrypted upload relays")
+	fmt.Println("  stakecli daemon       Run uploads and reviewer hooks in the background")
+	fmt.Println("  stakecli publish      Upload and publish math or front-end assets")
+	fmt.Println("  stakecli mcp          Run the native MCP server over stdio")
 	fmt.Println("  stakecli update       Check for and install new releases")
 	fmt.Println("  stakecli version      Show version and build info")
 	fmt.Println("  stakecli help         Show this help")
+	fmt.Println()
+	fmt.Println("Math upload/publish compliance flags:")
+	fmt.Println("  --compliance           Enable strict compliance in headless mode")
+	fmt.Println("  --base-mode NAME       Explicit base mode for cross-mode RTP checks")
+	fmt.Println("  --json                 Print structured JSON")
 	fmt.Println()
 	fmt.Println("Upload flags:")
 	fmt.Println("  --team    Team slug (required)")
@@ -135,6 +189,10 @@ func printUsage() {
 	fmt.Println("  --path    Path to local directory (required)")
 	fmt.Println("  --yes     Skip confirmation prompts (for CI/CD)")
 	fmt.Println("  --publish Publish after upload")
+	fmt.Println("  --accelerator NAME_OR_IP  Route presigned PUTs through an encrypted relay")
+	fmt.Println("  --direct  Upload directly without the interactive relay choice")
+	fmt.Println("  --estimate-repack  Estimate Zstd level 10 savings for math books")
+	fmt.Println("  --repack  Repack worthwhile Zstd books in temporary staging")
 	fmt.Println()
 	fmt.Println("Update flags:")
 	fmt.Println("  --check   Check for a newer release without installing")
@@ -142,9 +200,12 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Environment variables:")
 	fmt.Println("  STAKE_SID               Session ID for authentication (bypasses keyring, required for CI/CD)")
+	fmt.Println("  STAKE_ACCELERATOR       Default accelerator profile or IP address")
+	fmt.Println("  STAKE_ACCELERATOR_PASSWORD  Accelerator password (prefer a secret manager)")
 	fmt.Println("  STAKE_API_URL           Override API base URL (default: https://stake-engine.com/api)")
 	fmt.Println("  STAKE_NO_UPDATE_CHECK   Set to any value to disable the background update check")
 	fmt.Println()
 	fmt.Println("CI/CD example:")
-	fmt.Println("  STAKE_SID=$SECRET stakecli upload --team myteam --game mygame --type math --path ./dist --yes --publish")
+	fmt.Println("  STAKE_SID=$SECRET stakecli upload --team myteam --game mygame --type math --path ./dist --compliance --yes --repack --publish")
+	fmt.Println("  STAKE_SID=$SECRET stakecli publish math . --headless --team myteam --game mygame")
 }

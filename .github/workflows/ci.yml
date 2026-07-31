@@ -121,3 +121,32 @@ jobs:
             dist/*_checksums.txt
           if-no-files-found: warn
           retention-days: 7
+
+  accelerator:
+    name: Accelerator (linux/${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build static accelerator
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+        run: go build -trimpath -o stake-accelerator ./cmd/stake-accelerator
+
+      - name: Upload accelerator binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: stake-accelerator-linux-${{ matrix.arch }}
+          path: stake-accelerator
+          retention-days: 7

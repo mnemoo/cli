@@ -8,17 +8,18 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/mnemoo/cli/internal/api"
+	"github.com/mnemoo/cli/internal/service"
+	"github.com/mnemoo/cli/internal/stake"
 )
 
 type GameSelectedMsg struct {
-	Game api.TeamGameCard
+	Game stake.Game
 }
 
 type GoBackMsg struct{}
 
 type gamesLoadedMsg struct {
-	games []api.TeamGameCard
+	games []stake.Game
 }
 
 type gamesErrorMsg struct {
@@ -34,10 +35,10 @@ const (
 )
 
 type Model struct {
-	client   *api.Client
+	service  *service.Service
 	teamSlug string
 	teamName string
-	games    []api.TeamGameCard
+	games    []stake.Game
 	cursor   int
 	showDay  bool
 	state    state
@@ -47,9 +48,9 @@ type Model struct {
 	height   int
 }
 
-func New(client *api.Client, teamSlug, teamName string) Model {
+func New(appService *service.Service, teamSlug, teamName string) Model {
 	return Model{
-		client:   client,
+		service:  appService,
 		teamSlug: teamSlug,
 		teamName: teamName,
 		state:    stateLoading,
@@ -62,10 +63,10 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) loadGames() tea.Cmd {
-	client := m.client
+	appService := m.service
 	slug := m.teamSlug
 	return func() tea.Msg {
-		games, err := client.ListTeamGames(context.Background(), slug)
+		games, err := appService.ListGames(context.Background(), slug)
 		if err != nil {
 			return gamesErrorMsg{err: err}
 		}

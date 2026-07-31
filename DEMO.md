@@ -98,7 +98,10 @@ Per-game stats include realistic RTP (~96%), turnover, and profit across
 ## Demo bundle
 
 `cmd/demo-bundle` generates a seeded, reproducible bundle that passes the
-math compliance check with clean output:
+bundle and hard math compliance checks with deterministic output. Both
+2-star and 3-star are evaluated with the moptimizer report rules; monetary
+inputs are excluded from the verdict and each tier reports its calculated safe
+bet-level cap:
 
 - **3 modes** — `base` (cost 1), `freespins` (cost 100), `bonus_buy` (cost 200)
 - **RTP**: 96.42% / 96.38% / 96.28% (cross-mode variation 0.14%, under the

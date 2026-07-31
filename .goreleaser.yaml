@@ -47,6 +47,25 @@ builds:
     hooks:
       post:
         - cmd: bash .github/scripts/sign-macos.sh "{{ .Path }}"
+  - id: stake-accelerator
+    main: ./cmd/stake-accelerator
+    binary: stake-accelerator
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/mnemoo/cli/internal/version.Version={{ .Version }}
+      - -X github.com/mnemoo/cli/internal/version.Commit={{ .FullCommit }}
+      - -X github.com/mnemoo/cli/internal/version.Date={{ .Date }}
+      - -X github.com/mnemoo/cli/internal/version.BuiltBy=goreleaser
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
   - id: default
@@ -62,6 +81,17 @@ archives:
       - LICENSE*
       - README*
       - CHANGELOG*
+  - id: accelerator
+    ids:
+      - stake-accelerator
+    formats: [tar.gz]
+    name_template: >-
+      stake-accelerator_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE*
+      - README*
+      - packaging/stake-accelerator.service
+      - scripts/install-accelerator.sh
 
 nfpms:
   - id: packages
@@ -169,6 +199,13 @@ release:
     ```
 
     **Windows:** download the matching `.zip` archive from the assets below and extract `stakecli.exe`.
+
+    ---
+
+    **Linux upload accelerator:**
+    ```bash
+    curl -fsSL https://github.com/mnemoo/cli/releases/download/{{ .Tag }}/install-accelerator.sh | sudo bash -s -- --version {{ .Tag }}
+    ```
 
     ---
 

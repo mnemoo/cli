@@ -74,10 +74,10 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${TAG#v}"
-          # Rewrite /releases/download/vX.Y.Z/ -> new tag
-          sed -i -E "s|releases/download/v[0-9]+\.[0-9]+\.[0-9]+/|releases/download/${TAG}/|g" README.md
-          # Rewrite stakecli_X.Y.Z_ -> new version
-          sed -i -E "s|stakecli_[0-9]+\.[0-9]+\.[0-9]+_|stakecli_${VERSION}_|g" README.md
+          # Rewrite stable or pre-release version links to the new stable tag.
+          sed -i -E "s|releases/download/v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?/|releases/download/${TAG}/|g" README.md
+          sed -i -E "s|stakecli_[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?_|stakecli_${VERSION}_|g" README.md
+          sed -i -E "s|STAKECLI_VERSION = \"v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?\"|STAKECLI_VERSION = \"${TAG}\"|g" README.md
 
       - name: Commit and push
         env:
@@ -93,3 +93,17 @@ jobs:
           git add README.md
           git commit -m "chore(release): bump install URLs to ${TAG}"
           git push origin main
+
+  publish-accelerator-installer:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Upload standalone accelerator installer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "${TAG}" scripts/install-accelerator.sh --clobber
