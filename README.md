@@ -1,7 +1,7 @@
 # stakecli
 
 An open-source CLI and TUI for managing game assets on the
-[Stake Engine](https://stake-engine.com) RGS. Upload math and front-end
+[Stake Engine](https://studio.engine.io) RGS. Upload math and front-end
 bundles, run compliance checks, and publish releases from your terminal
 or CI pipeline.
 
@@ -275,7 +275,7 @@ limits.
 | Variable | Description |
 | --- | --- |
 | `STAKE_SID` | Session ID for authentication. Bypasses the keyring; required for CI/CD. |
-| `STAKE_API_URL` | Override API base URL. Default: `https://stake-engine.com/api`. |
+| `STAKE_API_URL` | Override API base URL. Default: `https://studio.engine.io/api`. |
 | `STAKE_NO_UPDATE_CHECK` | Set to any value to disable the background update check. |
 | `STAKE_STATE_DIR` | Override the private local directory used for cross-session upload progress. |
 | `STAKE_CONFIG_DIR` | Override the private config directory containing accounts, message state, and hooks. |
@@ -287,7 +287,7 @@ limits.
 
 `stakecli` authenticates against the Stake Engine API with the same
 session cookie (`sid`) your browser uses on
-[stake-engine.com](https://stake-engine.com). On interactive launch, you
+[studio.engine.io](https://studio.engine.io). On interactive launch, you
 will be asked to paste your SID; it is then stored securely in your OS
 keychain and reused on subsequent runs.
 
@@ -297,15 +297,15 @@ keychain and reused on subsequent runs.
 
 ### How to get your `sid` cookie
 
-1. Open your browser and log in to <https://stake-engine.com> as usual.
+1. Open your browser and log in to <https://studio.engine.io> as usual.
 2. Open DevTools:
    - **Chrome / Edge / Brave:** `F12`, or `Cmd+Option+I` (macOS) / `Ctrl+Shift+I` (Windows/Linux)
    - **Firefox:** `F12`, or `Cmd+Option+I` / `Ctrl+Shift+I`
    - **Safari:** enable the Develop menu in Preferences → Advanced, then `Cmd+Option+I`
 3. Navigate to the cookies panel:
-   - **Chrome / Edge / Brave:** `Application` tab → left sidebar → `Storage` → `Cookies` → `https://stake-engine.com`
-   - **Firefox:** `Storage` tab → `Cookies` → `https://stake-engine.com`
-   - **Safari:** `Storage` tab → `Cookies` → `stake-engine.com`
+   - **Chrome / Edge / Brave:** `Application` tab → left sidebar → `Storage` → `Cookies` → `https://studio.engine.io`
+   - **Firefox:** `Storage` tab → `Cookies` → `https://studio.engine.io`
+   - **Safari:** `Storage` tab → `Cookies` → `studio.engine.io`
 4. Find the row where **Name** is `sid`.
 5. Double-click the **Value** cell and copy the full string.
 6. Paste it into the `stakecli` login screen, or export it for CI:

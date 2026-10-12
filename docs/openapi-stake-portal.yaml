@@ -6,7 +6,7 @@ info:
   version: "1.0.0"
 
 servers:
-  - url: https://stake-engine.com/
+  - url: https://studio.engine.io/
 
 tags:
   - name: auth

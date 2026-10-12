@@ -30,7 +30,7 @@ func getBaseURL() string {
 	if u := os.Getenv("STAKE_API_URL"); u != "" {
 		return u
 	}
-	return "https://stake-engine.com/api"
+	return "https://studio.engine.io/api"
 }
 
 type Client struct {

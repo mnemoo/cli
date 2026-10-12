@@ -202,7 +202,7 @@ func printUsage() {
 	fmt.Println("  STAKE_SID               Session ID for authentication (bypasses keyring, required for CI/CD)")
 	fmt.Println("  STAKE_ACCELERATOR       Default accelerator profile or IP address")
 	fmt.Println("  STAKE_ACCELERATOR_PASSWORD  Accelerator password (prefer a secret manager)")
-	fmt.Println("  STAKE_API_URL           Override API base URL (default: https://stake-engine.com/api)")
+	fmt.Println("  STAKE_API_URL           Override API base URL (default: https://studio.engine.io/api)")
 	fmt.Println("  STAKE_NO_UPDATE_CHECK   Set to any value to disable the background update check")
 	fmt.Println()
 	fmt.Println("CI/CD example:")
