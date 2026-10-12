@@ -29,20 +29,20 @@ or CI pipeline.
 ### Linux (Debian/Ubuntu)
 
 ```bash
-curl -LO https://github.com/mnemoo/cli/releases/download/v2.0.0-beta.1/stakecli_2.0.0-beta.1_linux_amd64.deb
-sudo dpkg -i stakecli_2.0.0-beta.1_linux_amd64.deb
+curl -LO https://github.com/mnemoo/cli/releases/download/v2.0.1/stakecli_2.0.1_linux_amd64.deb
+sudo dpkg -i stakecli_2.0.1_linux_amd64.deb
 ```
 
 ### Linux (RHEL/Fedora)
 
 ```bash
-sudo rpm -i https://github.com/mnemoo/cli/releases/download/v2.0.0-beta.1/stakecli_2.0.0-beta.1_linux_amd64.rpm
+sudo rpm -i https://github.com/mnemoo/cli/releases/download/v2.0.1/stakecli_2.0.1_linux_amd64.rpm
 ```
 
 ### macOS (Apple Silicon)
 
 ```bash
-curl -L https://github.com/mnemoo/cli/releases/download/v2.0.0-beta.1/stakecli_2.0.0-beta.1_darwin_arm64.tar.gz | tar -xz
+curl -L https://github.com/mnemoo/cli/releases/download/v2.0.1/stakecli_2.0.1_darwin_arm64.tar.gz | tar -xz
 sudo mv stakecli /usr/local/bin/
 # If Gatekeeper blocks the binary, clear the quarantine flag:
 sudo xattr -d com.apple.quarantine /usr/local/bin/stakecli
@@ -60,7 +60,7 @@ irm https://raw.githubusercontent.com/mnemoo/cli/main/install.ps1 | iex
 Or, to install a specific version:
 
 ```powershell
-$env:STAKECLI_VERSION = "v2.0.0-beta.1"
+$env:STAKECLI_VERSION = "v2.0.1"
 irm https://raw.githubusercontent.com/mnemoo/cli/main/install.ps1 | iex
 ```
 
